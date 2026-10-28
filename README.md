@@ -30,3 +30,8 @@ Turn on **Settings → Pages → Deploy from branch → main / root**. The app w
 - U14 and U16 Best Athlete awards use these junior points.
 - U18 values are for analysis only. The official U18 and U20 awards use World Athletics points on senior equipment.
 - Only the derived junior constants are included. The World Athletics scoring library is **not** part of this repo.
+
+## WA Senior Points Calculator
+`wa-senior/index.html` scores senior performances with the World Athletics Scoring Tables 2025 and the World Rankings rules:
+result score from the WA tables, wind modification (100m, 200m, 100mH, 110mH, LJ, TJ: 6 points per m/s, none from 0 to +2.0, −30 with no reading), and placing scores by competition category (OW to F) for finals and rounds before the final.
+Live at `https://saket12345678.github.io/afi-junior-points-calculator/wa-senior/`.

@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WA Senior Points Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: gender lanes, then calculator (inputs left, score breakdown right), then reverse lookup and the rules used. */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#151b24; --muted:#5a6573; --line:#d8dce3;
+  --accent:#1e4a8c; --accent-soft:#dfe8f6; --plus:#1f6b4f; --plus-soft:#dcefe6; --minus:#b8432f; --minus-soft:#f6e1dc;
+  --gold:#a8790f; --gold-soft:#f6ecd2; --on-accent:#ffffff; --lane:#ffffff;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11151b; --panel:#1a2029; --ink:#e7eaef; --muted:#9aa4b1; --line:#2c3440;
+  --accent:#7fa8e6; --accent-soft:#1d2a3f; --plus:#5cc49a; --plus-soft:#173328; --minus:#e0705a; --minus-soft:#3a2420;
+  --gold:#e2b44a; --gold-soft:#3a3018; --on-accent:#0e1520; --lane:#11151b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151b; --panel:#1a2029; --ink:#e7eaef; --muted:#9aa4b1; --line:#2c3440;
+  --accent:#7fa8e6; --accent-soft:#1d2a3f; --plus:#5cc49a; --plus-soft:#173328; --minus:#e0705a; --minus-soft:#3a2420;
+  --gold:#e2b44a; --gold-soft:#3a3018; --on-accent:#0e1520; --lane:#11151b; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+[hidden]{display:none!important}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 56px;display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
+.wrap>*{min-width:0}
+header{display:grid;gap:6px;border-bottom:3px solid var(--accent);padding-bottom:16px}
+.eyebrow{font:600 13px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font:700 clamp(32px,5vw,48px)/1 var(--display);margin:0;text-wrap:balance}
+h2{font:700 26px/1.1 var(--display);margin:0 0 12px;text-wrap:balance}
+h3{font:700 19px/1.2 var(--display);margin:0 0 6px;letter-spacing:.02em}
+.lede{color:var(--muted);margin:0;max-width:70ch}
+.lanes{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--accent);max-width:520px}
+.lanes button{appearance:none;border:0;border-left:2px solid var(--lane);background:var(--accent);color:var(--on-accent);font:600 18px/1 var(--display);letter-spacing:.04em;padding:12px 10px;cursor:pointer}
+.lanes button:first-child{border-left:0}
+.lanes button[aria-pressed="true"]{background:var(--panel);color:var(--ink)}
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px;min-width:0}
+.form{display:grid;gap:14px;align-content:start}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+label{font-weight:600;font-size:14px}
+select,input{width:100%;font:500 17px/1.2 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+input.mono{font:500 22px/1.2 var(--mono)}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:400}
+.chk input{width:auto}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.hint{font-size:13px;color:var(--muted)}
+.err{font-size:14px;color:var(--minus);font-weight:600}
+.score{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.score .num{font:700 clamp(64px,12vw,100px)/.9 var(--display);font-variant-numeric:tabular-nums}
+.score .unit{font:600 17px var(--display);color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.sum{width:100%;border-collapse:collapse;font-size:15px}
+.sum td{padding:8px 4px;border-bottom:1px solid var(--line)}
+.sum td:last-child{text-align:right;font:600 17px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sum tr.total td{border-bottom:0;border-top:2px solid var(--ink);font-weight:700}
+.sum .why{display:block;font-size:13px;color:var(--muted)}
+.pos{color:var(--plus)} .neg{color:var(--minus)}
+.chip{display:inline-block;font:600 13px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:3px;background:var(--accent-soft);color:var(--accent)}
+.note{font-size:14px;background:var(--gold-soft);border-radius:4px;padding:10px 12px;margin:0}
+.ladder{width:100%;border-collapse:collapse;font-size:14px}
+.ladder th,.ladder td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+.ladder td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.rev{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:20px;align-items:start}
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.rules .card{font-size:14px}
+.rules ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.tw{overflow-x:auto}
+.ptab{border-collapse:collapse;font-size:13px;min-width:560px;width:100%}
+.ptab th,.ptab td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.ptab th:first-child,.ptab td:first-child{text-align:left}
+.ptab th{font:600 12px var(--display);letter-spacing:.06em;color:var(--muted)}
+.ptab td.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:860px){.calc,.rev,.rules{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.row2{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">World Athletics Scoring Tables 2025 · Ranking Rules</div>
+  <h1>WA Senior Points Calculator</h1>
+  <p class="lede">Type a mark to get its World Athletics points. Add the wind, the competition category and the place to get the full World Rankings performance score. Points follow the WA rules exactly.</p>
+</header>
+
+<nav class="lanes" id="lanes" aria-label="Gender">
+  <button type="button" data-g="m" aria-pressed="true">Men</button>
+  <button type="button" data-g="w" aria-pressed="false">Women</button>
+  <button type="button" data-g="x" aria-pressed="false">Mixed</button>
+</nav>
+
+<section class="calc">
+  <div class="card form">
+    <div class="field"><label for="ev">Event</label><select id="ev"></select></div>
+    <div class="field"><label for="mark">Mark</label><input id="mark" class="mono" autocomplete="off" spellcheck="false"><span class="hint" id="markHint"></span></div>
+    <div id="windBox" class="field">
+      <label for="wind">Wind (m/s)</label>
+      <input id="wind" class="mono" inputmode="decimal" autocomplete="off" placeholder="+1.2">
+      <label class="chk"><input type="checkbox" id="noWind"> No wind reading recorded</label>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="cat">Competition category</label><select id="cat"></select></div>
+      <div class="field"><label for="round">Round</label><select id="round">
+        <option value="F">Final</option>
+        <option value="R9">Round before final · final of 9 or fewer</option>
+        <option value="R10">Round before final · final of 10 or more</option>
+        <option value="N">No placing score</option></select></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="place">Place</label><select id="place"></select></div>
+      <div class="field"><label for="catHelp">What counts as this category</label><div class="hint" id="catHelp"></div></div>
+    </div>
+  </div>
+
+  <div class="card form" aria-live="polite">
+    <div><span class="chip" id="grp">–</span></div>
+    <div class="score"><span class="num" id="perf">–</span><span class="unit" id="perfUnit">performance score</span></div>
+    <div class="err" id="err" hidden></div>
+    <table class="sum">
+      <tr><td>Result score from the WA tables<span class="why" id="whyRes"></span></td><td id="vRes">–</td></tr>
+      <tr id="trWind"><td>Wind modification<span class="why" id="whyWind"></span></td><td id="vWind">–</td></tr>
+      <tr><td>Placing score<span class="why" id="whyPl"></span></td><td id="vPl">–</td></tr>
+      <tr class="total"><td>Performance score</td><td id="vTot">–</td></tr>
+    </table>
+    <p class="note" id="eventNote" hidden></p>
+  </div>
+</section>
+
+<section>
+  <h2>Mark needed for a score</h2>
+  <div class="rev">
+    <div class="card form">
+      <div class="field"><label for="want">Points wanted (1–1400)</label><input id="want" class="mono" inputmode="numeric" value="1200"></div>
+      <div class="hint">Uses the event and gender chosen above.</div>
+      <div class="score"><span class="num" id="wantMark" style="font-size:52px">–</span></div>
+    </div>
+    <div class="card tw"><table class="ladder"><thead><tr><th>Points</th><th>Mark</th><th>Points</th><th>Mark</th></tr></thead><tbody id="ladder"></tbody></table></div>
+  </div>
+</section>
+
+<section>
+  <h2>Placing score table in use</h2>
+  <p class="lede" id="ptabTitle" style="margin-bottom:10px"></p>
+  <div class="card tw" id="ptabWrap"></div>
+</section>
+
+<section>
+  <h2>Rules applied</h2>
+  <div class="rules">
+    <div class="card"><h3>Result score</h3><ul>
+      <li>Points come from the World Athletics Scoring Tables 2025, from 1 to 1400.</li>
+      <li>A mark better than the 1400 line shows as 1400+. A mark below the 1-point line scores 0.</li>
+      <li>Road races and road walks are scored to whole seconds. Track times use hundredths.</li>
+      <li>Short track ("sh") events have their own tables and no wind.</li></ul></div>
+    <div class="card"><h3>Wind</h3><ul>
+      <li>Applies to 100m, 200m, 100mH, 110mH, Long Jump and Triple Jump.</li>
+      <li>1 m/s of wind is worth 6 points, so 0.6 points for every 0.1 m/s.</li>
+      <li>Tailwind from 0 to +2.0 m/s: no change. Above +2.0 m/s: minus 6 points per m/s of the full reading.</li>
+      <li>Headwind: plus 6 points per m/s.</li>
+      <li>No wind reading: minus 30 points.</li></ul></div>
+    <div class="card"><h3>Placing score</h3><ul>
+      <li>Added to the result score to give the performance score.</li>
+      <li>Given in the final. OW, DF, GW and GL also give it in the round before the final.</li>
+      <li>5000m and 3000mSC groups and 10,000m have their own tables. The 10km road race has its own table.</li>
+      <li>A National Senior Outdoor Championships is category B. Only one per country per year gives placing scores.</li></ul></div>
+    <div class="card"><h3>Not counted by WA</h3><ul>
+      <li>Results with youth or junior hurdles or implements.</li>
+      <li>Intermediate splits.</li>
+      <li>Results not ratified or not held under World Athletics rules.</li>
+      <li>Placing scores for combined events, relays, walks and road races (other than 10km) are in other sections of the WA rules and are not included here.</li></ul></div>
+  </div>
+</section>
+
+<footer>World Athletics Scoring Tables 2025 and World Rankings Rules (Track & Field Events, 2026 edition). Built for the Athletics Federation of India.</footer>
+</div>
+
+<script>
+/* ==============================================
+    WA Scoring Tables 2025 — JavaScript Library
+================================================ */
+const eventNames = [
+    "50m", "55m", "60m", "100m", "200m", "200m sh", "300m", "300m sh", "400m", "400m sh",
+    "500m", "500m sh", "600m", "600m sh", "800m", "800m sh", "1000m", "1000m sh", "1500m", "1500m sh", "Mile", "Mile sh", "2000m", "2000m sh",
+    "3000m", "3000m sh", "2 Miles", "2 Miles sh", "5000m", "5000m sh", "10000m",
+    "Mile R", "5km", "10km", "15km", "10 Miles R", "20km", "HM", "25km", "30km", "Marathon", "100km",
+    "50mH", "55mH", "60mH", "100mH", "110mH", "300mH", "400mH", "2000mSC", "3000mSC",
+    "4x100m", "4x200m", "4x200m sh", "4x400m", "4x400m sh",
+    "HJ", "PV", "LJ", "TJ", "SP", "DT", "HT", "JT",
+    "3km W", "5km W", "10km W", "15km W", "20km W", "HM W", "30km W", "35km W", "Marathon W", "50km W",
+    "3000mW", "5000mW", "10000mW", "15000mW", "20000mW", "30000mW", "35000mW", "50000mW",
+    "Decathlon", "Heptathlon", "Heptathlon sh", "Pentathlon sh"
+];
+const fieldEvents = ["HJ", "PV", "LJ", "TJ", "SP", "DT", "HT", "JT"];
+const jumpEvents = ["HJ", "PV", "LJ", "TJ"];
+const combinedEvents = ["Decathlon", "Heptathlon", "Heptathlon sh", "Pentathlon sh"];
+const regex = {
+    time: /^(?:(\d+):(\d{2}):(\d{2})(?:\.(\d+))?|(\d+):(\d{2})(?:\.(\d+))?|(\d+)(?:\.(\d+))?)$/,
+    field: /^\d+(\.\d+)?$/,
+    points: /^\d+$/
+};
+const SCORES = 1400;
+const POW10 = [1, 10, 100];
+const cachedTables = {};
+const parsedEventCache = new Map();
+
+const FORMULAS = {
+    m: {
+        "50m": [95.8, 9.2, 0, 2],
+        "55m": [78.9, 10, 0, 2],
+        "60m": [68.6, 10.7, 0, 2],
+        "100m": [24.63, 17, 0, 2],
+        "200m": [5.08, 35.5, 0, 2],
+        "200m sh": [5.04, 36, 0, 2],
+        "300m": [1.83, 57.2, 0, 2],
+        "300m sh": [1.803, 58, 0, 2],
+        "400m": [1.021, 79, 0, 2],
+        "400m sh": [0.981, 80.6, 0, 2],
+        "500m": [0.585, 104, 0, 2],
+        "500m sh": [0.565, 106, 0, 2],
+        "50mH": [34.1999, 12.35, 0, 2],
+        "55mH": [30.07, 13.35, 0, 2],
+        "60mH": [23.9, 14.6, 0, 2],
+        "110mH": [7.66, 25.8, 0, 2],
+        "300mH": [1.057, 68, 0, 2],
+        "400mH": [0.546, 95.5, 0, 2],
+        "4x100m": [1.236, 69.5, 0, 2],
+        "4x200m": [0.29767, 144, 0, 2],
+        "4x200m sh": [0.312, 144, 0, 2],
+        "4x400m": [0.0505, 334, 0, 2],
+        "4x400m sh": [0.0489, 340, 0, 2],
+        "600m": [0.3857, 129.5, 0, 2],
+        "600m sh": [0.39, 131, 0, 2],
+        "800m": [0.198, 182, 0, 2],
+        "800m sh": [0.1974, 184, 0, 2],
+        "1000m": [0.1123, 237.5, 0, 2],
+        "1000m sh": [0.1139, 240, 0, 2],
+        "1500m": [0.04066, 385, 0, 2],
+        "1500m sh": [0.042, 386, 0, 2],
+        "Mile": [0.0351, 415, 0, 2],
+        "Mile sh": [0.0369, 415, 0, 2],
+        "2000m": [0.02181, 528, 0, 2],
+        "2000m sh": [0.0226, 528, 0, 2],
+        "2000mSC": [0.01023, 660, 0, 2],
+        "3000mSC": [0.004316, 1020, 0, 2],
+        "3000m": [0.00815, 840, 0, 2],
+        "3000m sh": [0.008322, 840, 0, 2],
+        "2 Miles": [0.00703, 904.8, 0, 2],
+        "2 Miles sh": [0.00721, 907, 0, 2],
+        "5000m": [0.002778, 1440, 0, 2],
+        "5000m sh": [0.0029, 1440, 0, 2],
+        "10000m": [0.000524, 3150, 0, 2],
+        "Mile R": [0.0351, 415, 0, 2],
+        "5km": [0.002778, 1440, 0, 0],
+        "10km": [0.000524, 3150, 0, 0],
+        "15km": [0.0002162, 4868, 0, 0],
+        "10 Miles R": [0.0001852, 5250, 0, 0],
+        "20km": [0.0001085, 6703, 0, 0],
+        "HM": [9.47e-05, 7140, 0, 0],
+        "25km": [6.38e-05, 8640, 0, 0],
+        "30km": [4.19e-05, 10600, 0, 0],
+        "Marathon": [2.01e-05, 15300, 0, 0],
+        "100km": [1.765e-06, 48600, 0, 0],
+        "3km W": [0.001318, 1605, 0, 0],
+        "5km W": [0.000467, 2700, 0, 0],
+        "10km W": [0.0001137, 5550, 0, 0],
+        "15km W": [4.98e-05, 8430, 0, 0],
+        "20km W": [2.735e-05, 11400, 0, 0],
+        "HM W": [2.375e-05, 12195, 0, 0],
+        "30km W": [8.93e-06, 19110, 0, 0],
+        "35km W": [6.14e-06, 22800, 0, 0],
+        "Marathon W": [3.43e-06, 29700, 0, 0],
+        "50km W": [2.124e-06, 37200, 0, 0],
+        "3000mW": [0.001318, 1605, 0, 2],
+        "5000mW": [0.000467, 2700, 0, 2],
+        "10000mW": [0.0001137, 5550, 0, 2],
+        "15000mW": [4.98e-05, 8430, 0, 2],
+        "20000mW": [2.735e-05, 11400, 0, 2],
+        "30000mW": [8.93e-06, 19110, 0, 2],
+        "35000mW": [6.14e-06, 22800, 0, 2],
+        "50000mW": [2.124e-06, 37200, 0, 2],
+        "HJ": [0.003229, 1153.4, -5000, 2],
+        "PV": [0.0003042, 3939, -5000, 2],
+        "LJ": [0.0001929, 4841, -5000, 2],
+        "TJ": [4.611e-05, 9863, -5000, 2],
+        "SP": [0.042172, 687.7, -20000, 2],
+        "DT": [0.004007, 2232.6, -20000, 2],
+        "HT": [0.0028462, 2649.4, -20000, 2],
+        "JT": [0.0023974, 2886.8, -20000, 2],
+        "Heptathlon sh": [1.752e-06, 53175, -5000, 0],
+        "Decathlon": [9.774e-07, 71173, -5000, 0]
+    },
+    w: {
+        "50m": [33.03, 12.1, 0, 2],
+        "55m": [27.68, 13.15, 0, 2],
+        "60m": [24.9, 14, 0, 2],
+        "100m": [9.92, 22, 0, 2],
+        "200m": [2.242, 45.5, 0, 2],
+        "200m sh": [1.962, 47.5, 0, 2],
+        "300m": [0.699999, 77, 0, 2],
+        "300m sh": [0.6595, 79, 0, 2],
+        "400m": [0.335, 110, 0, 2],
+        "400m sh": [0.3224, 112, 0, 2],
+        "500m": [0.1876, 145.5, 0, 2],
+        "500m sh": [0.1714, 150.5, 0, 2],
+        "50mH": [16.2, 15.3, 0, 2],
+        "55mH": [13.19, 16.8, 0, 2],
+        "60mH": [11.16, 18.2, 0, 2],
+        "100mH": [3.98, 30, 0, 2],
+        "300mH": [0.428, 90.6, 0, 2],
+        "400mH": [0.208567, 130, 0, 2],
+        "4x100m": [0.3895, 98, 0, 2],
+        "4x200m": [0.0795, 212, 0, 2],
+        "4x200m sh": [0.0826, 212, 0, 2],
+        "4x400m": [0.01562, 480, 0, 2],
+        "4x400m sh": [0.0155, 484, 0, 2],
+        "600m": [0.129, 180, 0, 2],
+        "600m sh": [0.1063, 190.35, 0, 2],
+        "800m": [0.0688, 250, 0, 2],
+        "800m sh": [0.0572, 264, 0, 2],
+        "1000m": [0.0382, 330, 0, 2],
+        "1000m sh": [0.03473, 340.4, 0, 2],
+        "1500m": [0.0134, 540, 0, 2],
+        "1500m sh": [0.01365, 540, 0, 2],
+        "Mile": [0.01165, 580, 0, 2],
+        "Mile sh": [0.01154, 585.5, 0, 2],
+        "2000m": [0.006766, 750, 0, 2],
+        "2000m sh": [0.00685, 752.2, 0, 2],
+        "2000mSC": [0.003636, 932, 0, 2],
+        "3000mSC": [0.001323, 1510, 0, 2],
+        "3000m": [0.002539, 1200, 0, 2],
+        "3000m sh": [0.00259, 1200, 0, 2],
+        "2 Miles": [0.002157, 1296.3, 0, 2],
+        "2 Miles sh": [0.002202, 1296.3, 0, 2],
+        "5000m": [0.000808, 2100, 0, 2],
+        "5000m sh": [0.000825, 2100, 0, 2],
+        "10000m": [0.0001712, 4500, 0, 2],
+        "Mile R": [0.01165, 580, 0, 2],
+        "5km": [0.000808, 2100, 0, 0],
+        "10km": [0.0001712, 4500, 0, 0],
+        "15km": [5.95e-05, 7289, 0, 0],
+        "10 Miles R": [5.016e-05, 7904, 0, 0],
+        "20km": [2.956e-05, 10154, 0, 0],
+        "HM": [2.596e-05, 10798, 0, 0],
+        "25km": [1.782e-05, 13020, 0, 0],
+        "30km": [1.178e-05, 15960, 0, 0],
+        "Marathon": [5.39e-06, 23400, 0, 0],
+        "100km": [8.74e-07, 61200, 0, 0],
+        "3km W": [0.000923, 1842, 0, 0],
+        "5km W": [0.0003246, 3140, 0, 0],
+        "10km W": [7.85e-05, 6420, 0, 0],
+        "15km W": [3.387e-05, 9784, 0, 0],
+        "20km W": [1.87e-05, 13200, 0, 0],
+        "HM W": [1.657e-05, 14025, 0, 0],
+        "30km W": [6.89e-06, 21360, 0, 0],
+        "35km W": [4.93e-06, 25440, 0, 0],
+        "Marathon W": [3.08e-06, 31960, 0, 0],
+        "50km W": [1.99e-06, 39360, 0, 0],
+        "3000mW": [0.000923, 1842, 0, 2],
+        "5000mW": [0.0003246, 3140, 0, 2],
+        "10000mW": [7.85e-05, 6420, 0, 2],
+        "15000mW": [3.387e-05, 9784, 0, 2],
+        "20000mW": [1.87e-05, 13200, 0, 2],
+        "30000mW": [6.89e-06, 21360, 0, 2],
+        "35000mW": [4.93e-06, 25440, 0, 2],
+        "50000mW": [1.99e-06, 39360, 0, 2],
+        "HJ": [0.003934, 1057.4, -5000, 2],
+        "PV": [0.0003953, 3483, -5000, 2],
+        "LJ": [0.0001966, 4924, -5000, 2],
+        "TJ": [4.282e-05, 10553, -5000, 2],
+        "SP": [0.0462, 657.53, -20000, 2],
+        "DT": [0.0040277, 2227.3, -20000, 2],
+        "HT": [0.0030965, 2540, -20000, 2],
+        "JT": [0.004073, 2214.9, -20000, 2],
+        "Pentathlon sh": [2.9445e-06, 41033, -5000, 0],
+        "Heptathlon": [1.581e-06, 55990, -5000, 0]
+    },
+    x: {
+        "4x400m": [0.02732, 400, 0, 2],
+        "4x400m sh": [0.02688, 405, 0, 2]
+    }
+};
+
+const EXCEPTIONS = {"m":{"500m":{"936":"1:03.99"},"500m sh":{"904":"1:05.99","226":"-"},"110mH":{"766":"-","765":"15.80"},"400mH":{"1365":"45.49"},"2000m sh":{"226":"-"},"3000m":{"326":"-"},"5000m sh":{"464":"17:19.99","261":"18:59.99","116":"20:39.99","29":"22:19.99"},"10000m":{"1179":"27:29.99","524":"35:49.99","131":"44:09.99"},"30km W":{"893":"-"},"5000mW":{"467":"28:19.99"},"15000mW":{"1245":"57:09.99"},"30000mW":{"893":"2:31:49.99"}},"w":{"55m":{"692":"-","173":"-"},"100m":{"992":"-","558":"-","557":"14.50"},"300m":{"766":"43.92","70":"1:07.00"},"400m":{"1206":"49.99"},"400m sh":{"806":"1:01.99"},"50mH":{"405":"-","404":"10.30"},"60mH":{"279":"-"},"600m sh":{"1063":"1:30.34"},"5000m":{"808":"18:19.99","202":"26:39.99"},"5000m sh":{"825":"18:19.99","528":"21:39.99","297":"24:59.99","132":"28:19.99","33":"31:39.99"},"10000m":{"1070":"33:19.99"},"10km":{"1070":"33:19"},"10000mW":{"1256":"40:19.99","314":"1:13:39.99"},"50000mW":{"796":"5:22:39.99","199":"8:09:19.99"}},"x":{}};
+
+function pad2(n) {
+    return (n < 10 ? "0" : "") + n;
+}
+
+function formatTime(n, dec) {
+    const q = POW10[dec];
+    const total = Math.floor(n / q);
+    const frac = n - total * q;
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const fs = dec > 0 ? "." + String(frac).padStart(dec, "0") : "";
+    let text;
+    if (h > 0) {
+        text = h + ":" + pad2(m) + ":" + pad2(s) + fs;
+    } else if (m > 0) {
+        text = m + ":" + pad2(s) + fs;
+    } else {
+        text = s + fs;
+    }
+    return text;
+}
+
+function formatField(n) {
+    return Math.floor(n / 100) + "." + pad2(n % 100);
+}
+
+function buildColumn(gender, event) {
+    let column = null;
+    const params = FORMULAS[gender] && FORMULAS[gender][event];
+
+    if (params) {
+        const a = params[0], b = params[1], k = params[2], dec = params[3];
+        const isCombined = combinedEvents.includes(event);
+        const isTime = !fieldEvents.includes(event) && !isCombined;
+        const isJump = jumpEvents.includes(event);
+        const q = POW10[dec];
+        const raw = new Array(SCORES + 2);
+
+        for (let p = 1; p <= SCORES + 1; p++) {
+            if (isTime) {
+                raw[p] = Math.floor((b - Math.sqrt(p / a)) * q);
+            } else {
+                const m = -b + Math.sqrt((p - k) / a);
+                raw[p] = (isJump || isCombined) ? Math.ceil(m) : Math.ceil(m * 100);
+            }
+        }
+        column = new Array(SCORES);
+        for (let p = SCORES; p >= 1; p--) {
+            if (raw[p] === raw[p + 1]) {
+                column[SCORES - p] = "-";
+            } else if (isTime) {
+                column[SCORES - p] = formatTime(raw[p], dec);
+            } else if (isCombined) {
+                column[SCORES - p] = String(raw[p]);
+            } else {
+                column[SCORES - p] = formatField(raw[p]);
+            }
+        }
+        const fixes = EXCEPTIONS[gender] && EXCEPTIONS[gender][event];
+        if (fixes) {
+            for (const p in fixes) {
+                column[SCORES - Number(p)] = fixes[p];
+            }
+        }
+    }
+    return column;
+}
+
+function getColumn(table, event) {
+    let column = table.columns[event];
+    if (!column) {
+        column = buildColumn(table.gender, event);
+        if (column) table.columns[event] = column;
+    }
+    return column || null;
+}
+
+function loadScoringTables(gender) {
+    let result;
+
+    if (cachedTables[gender]) {
+        result = {isValid: true, value: cachedTables[gender]};
+    } else if (!FORMULAS[gender]) {
+        result = {isValid: false, value: `Invalid gender: "${gender}"`};
+    } else {
+        const table = {gender: gender, columns: {}};
+        cachedTables[gender] = table;
+        result = {isValid: true, value: table};
+    }
+    return result;
+}
+
+function getEventName(gender, event) {
+    let result = {isValid: false, value: ""};
+    if (!eventNames.includes(event)) {
+        result = {isValid: false, value: `Unknown event: "${event}"`};
+    } else {
+        if (gender === "m") {
+            if (eventNames.includes(event) && !["100mH", "Pentathlon sh", "Heptathlon"].includes(event)) {
+                result = {isValid: true, value: event};
+            } else {
+                result = {isValid: false, value: `Unknown men's event: "${event}"`};
+            }
+        } else if (gender === "w") {
+            if (eventNames.includes(event) && !["110mH", "Heptathlon sh", "Decathlon"].includes(event)) {
+                result = {isValid: true, value: event};
+            } else {
+                result = {isValid: false, value: `Unknown women's event: "${event}"`};
+            }
+        } else if (gender === "x") {
+            if (["4x400m", "4x400m sh"].includes(event)) {
+                result = {isValid: true, value: event};
+            } else {
+                result = {isValid: false, value: `Unknown mixed event: "${event}"`};
+            }
+        }
+    }
+    return result;
+}
+
+function validateMark(event, mark) {
+    const original = String(mark);
+    mark = original.replace(/,/g, ".");
+    let result = {isValid: false, value: ""};
+
+    if (fieldEvents.includes(event)) {
+        if (!regex.field.test(mark)) {
+            result = {isValid: false, type: "field", value: `Invalid mark for field events: "${original}"`};
+        } else {
+            result = {isValid: true, type: "field", value: mark};
+        }
+    } else if (combinedEvents.includes(event)) {
+        if (!regex.points.test(mark)) {
+            result = {isValid: false, type: "combined", value: `Invalid mark for combined events: "${original}"`};
+        } else {
+            result = {isValid: true, type: "combined", value: mark};
+        }
+    } else {
+        if (!regex.time.test(mark)) {
+            result = {isValid: false, type: "time", value: `Invalid mark for track events: "${original}"`};
+        } else {
+            result = {isValid: true, type: "time", value: mark};
+        }
+    }
+    return result;
+}
+
+function validateScore(score) {
+    score = String(score);
+    let result = {isValid: false, value: ""};
+
+    if (!regex.points.test(score) || Number(score) < 1 || Number(score) > 1400) {
+        result = {isValid: false, value: `Invalid score: "${score}". It must be between 1 and 1400.`};
+    } else {
+        result = {isValid: true, value: score};
+    }
+    return result;
+}
+
+function convertTimeToSeconds(time) {
+    time = String(time);
+    let totalSeconds = 0;
+
+    if (!time.includes(":")) {
+        totalSeconds = parseFloat(time);
+    } else {
+        const timeParts = time.split(":");
+        const parts = [];
+
+        for (const part of timeParts) {
+            const parsedNumber = parseFloat(part);
+            if (isNaN(parsedNumber)) {
+                parts.push(0);
+            } else {
+                parts.push(parsedNumber);
+            }
+        }
+        if (parts.length === 3) {
+            totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+        } else if (parts.length === 2) {
+            totalSeconds = (parts[0] * 60) + parts[1];
+        } else if (parts.length === 1) {
+            totalSeconds = parts[0];
+        }
+    }
+    return totalSeconds;
+}
+
+function getParsedEvent(table, event, type) {
+    let result;
+    let tableCache = parsedEventCache.get(table);
+    if (!tableCache) {
+        tableCache = {};
+        parsedEventCache.set(table, tableCache);
+    }
+    if (tableCache[event]) {
+        result = tableCache[event];
+    } else {
+        const column = getColumn(table, event);
+        const parsed = [];
+        if (column) {
+            for (let i = 0; i < column.length; i++) {
+                const raw = column[i];
+                if (raw !== "-") {
+                    const value = type === "time" ? convertTimeToSeconds(raw) : Number(raw);
+                    parsed.push({ score: column.length - i, value });
+                }
+            }
+        }
+        tableCache[event] = parsed;
+        result = parsed;
+    }
+    return result;
+}
+
+function calculateScore(table, event, mark, type) {
+    let result;
+    const markValue = type === "time" ? convertTimeToSeconds(mark) : Number(mark);
+    const parsed = getParsedEvent(table, event, type);
+
+    if (parsed.length === 0) {
+        result = 0;
+    } else {
+        let continuar = false;
+        const best = parsed[0].value;
+        const worst = parsed[parsed.length - 1].value;
+
+        if (type === "time") {
+            if (markValue < best) {
+                result = "+1400";
+            } else if (markValue > worst) {
+                result = 0;
+            } else {
+                continuar = true;
+            }
+        } else {
+            if (markValue > best) {
+                result = "+1400";
+            } else if (markValue < worst) {
+                result = 0;
+            } else {
+                continuar = true;
+            }
+        }
+        if (continuar === true) {
+            let lo = 0;
+            let hi = parsed.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                const satisfies = type === "time"
+                    ? parsed[mid].value >= markValue
+                    : parsed[mid].value <= markValue;
+                if (satisfies) {
+                    hi = mid;
+                } else {
+                    lo = mid + 1;
+                }
+            }
+            result = parsed[lo].score;
+        }
+    }
+    return result;
+}
+
+function calculateMark(table, event, score) {
+    let mark = null;
+    let continueSearching = true;
+    const column = getColumn(table, event);
+    if (!column) {
+        mark = `No data for event: "${event}"`;
+    } else {
+        const n = column.length;
+        if (column[n - Number(score)] !== '-') {
+            mark = column[n - Number(score)];
+        } else {
+            for (let i = 1; (i <= 50 && continueSearching); i++) {
+                if ((i - Number(score) + n) < n) {
+                    const v = column[n - Number(score) + i];
+                    if (v !== undefined && v !== '-' && continueSearching) {
+                        mark = v;
+                        continueSearching = false;
+                    }
+                } else {
+                    const v = column[n - Number(score) - i];
+                    if (v !== undefined && v !== '-' && continueSearching) {
+                        mark = (parseFloat(v) - 0.01).toFixed(2);
+                        continueSearching = false;
+                    }
+                }
+            }
+        }
+    }
+    return mark;
+}
+
+function waVersion() {
+    return "WA 2025";
+}
+
+function waScore(gender, event, mark) {
+    const scoringTables = loadScoringTables(gender);
+    const eventName = getEventName(gender, event);
+    const markValidation = validateMark(event, mark);
+    let score;
+
+    if (!scoringTables.isValid) {
+        score = scoringTables.value;
+    } else if (!eventName.isValid) {
+        score = eventName.value;
+    } else if (!markValidation.isValid) {
+        score = markValidation.value;
+    } else {
+        score = calculateScore(scoringTables.value, eventName.value, markValidation.value, markValidation.type);
+    }
+    return score;
+}
+
+function waMark(gender, event, score) {
+    const scoringTables = loadScoringTables(gender);
+    const eventName = getEventName(gender, event);
+    const scoreValidation = validateScore(score);
+    let points;
+
+    if (!scoringTables.isValid) {
+        points = scoringTables.value;
+    } else if (!eventName.isValid) {
+        points = eventName.value;
+    } else if (!scoreValidation.isValid) {
+        points = scoreValidation.value;
+    } else {
+        points = calculateMark(scoringTables.value, eventName.value, scoreValidation.value);
+    }
+    return points;
+}
+
+window.WAScore = { waVersion, waScore, waMark };
+
+</script>
+<script>
+var W=window.WAScore;
+var NAMES={"50m":"50 Metres","55m":"55 Metres","60m":"60 Metres","100m":"100 Metres","200m":"200 Metres","300m":"300 Metres","400m":"400 Metres","500m":"500 Metres","600m":"600 Metres","800m":"800 Metres","1000m":"1000 Metres","1500m":"1500 Metres","Mile":"Mile","2000m":"2000 Metres","3000m":"3000 Metres","2 Miles":"2 Miles","5000m":"5000 Metres","10000m":"10,000 Metres",
+ "Mile R":"Road Mile","5km":"5 km Road","10km":"10 km Road","15km":"15 km Road","10 Miles R":"10 Miles Road","20km":"20 km Road","HM":"Half Marathon","25km":"25 km Road","30km":"30 km Road","Marathon":"Marathon","100km":"100 km Road",
+ "50mH":"50 Metres Hurdles","55mH":"55 Metres Hurdles","60mH":"60 Metres Hurdles","100mH":"100 Metres Hurdles","110mH":"110 Metres Hurdles","300mH":"300 Metres Hurdles","400mH":"400 Metres Hurdles","2000mSC":"2000m Steeplechase","3000mSC":"3000m Steeplechase",
+ "4x100m":"4x100m Relay","4x200m":"4x200m Relay","4x400m":"4x400m Relay","HJ":"High Jump","PV":"Pole Vault","LJ":"Long Jump","TJ":"Triple Jump","SP":"Shot Put","DT":"Discus Throw","HT":"Hammer Throw","JT":"Javelin Throw",
+ "3km W":"3 km Race Walk (road)","5km W":"5 km Race Walk (road)","10km W":"10 km Race Walk (road)","15km W":"15 km Race Walk (road)","20km W":"20 km Race Walk (road)","HM W":"Half Marathon Race Walk","30km W":"30 km Race Walk (road)","35km W":"35 km Race Walk (road)","Marathon W":"Marathon Race Walk","50km W":"50 km Race Walk (road)",
+ "3000mW":"3000m Race Walk (track)","5000mW":"5000m Race Walk (track)","10000mW":"10,000m Race Walk (track)","15000mW":"15,000m Race Walk (track)","20000mW":"20,000m Race Walk (track)","30000mW":"30,000m Race Walk (track)","35000mW":"35,000m Race Walk (track)","50000mW":"50,000m Race Walk (track)",
+ "Decathlon":"Decathlon","Heptathlon":"Heptathlon","Heptathlon sh":"Heptathlon (short track)","Pentathlon sh":"Pentathlon (short track)"};
+function label(e){if(/ sh$/.test(e)&&!NAMES[e]){var b=e.replace(/ sh$/,"");return (NAMES[b]||b)+" (short track)"}return NAMES[e]||e}
+var ORDER=["50m","55m","60m","100m","200m","200m sh","300m","300m sh","400m","400m sh","500m","500m sh","600m","600m sh","800m","800m sh","1000m","1000m sh","1500m","1500m sh","Mile","Mile sh","2000m","2000m sh","3000m","3000m sh","2 Miles","2 Miles sh","5000m","5000m sh","10000m",
+ "50mH","55mH","60mH","100mH","110mH","300mH","400mH","2000mSC","3000mSC","HJ","PV","LJ","TJ","SP","DT","HT","JT","Decathlon","Heptathlon","Heptathlon sh","Pentathlon sh",
+ "4x100m","4x200m","4x200m sh","4x400m","4x400m sh","Mile R","5km","10km","15km","10 Miles R","20km","HM","25km","30km","Marathon","100km",
+ "3000mW","5000mW","10000mW","15000mW","20000mW","30000mW","35000mW","50000mW","3km W","5km W","10km W","15km W","20km W","HM W","30km W","35km W","Marathon W","50km W"];
+var GROUPS=[["Track","50m 55m 60m 100m 200m 200m sh 300m 300m sh 400m 400m sh 500m 500m sh 600m 600m sh 800m 800m sh 1000m 1000m sh 1500m 1500m sh Mile Mile sh 2000m 2000m sh 3000m 3000m sh|2 Miles|2 Miles sh|5000m 5000m sh 10000m"],
+ ["Hurdles and steeplechase","50mH 55mH 60mH 100mH 110mH 300mH 400mH 2000mSC 3000mSC"],["Jumps","HJ PV LJ TJ"],["Throws","SP DT HT JT"],["Combined events","Decathlon Heptathlon|Heptathlon sh|Pentathlon sh"],
+ ["Relays","4x100m 4x200m|4x200m sh|4x400m|4x400m sh"],["Road running","Mile R|5km 10km 15km|10 Miles R|20km HM 25km 30km Marathon 100km"],["Race walking","3000mW 5000mW 10000mW 15000mW 20000mW 30000mW 35000mW 50000mW|3km W|5km W|10km W|15km W|20km W|HM W|30km W|35km W|Marathon W|50km W"]];
+function inGroup(s,e){var parts=s.split("|");for(var i=0;i<parts.length;i++){if(parts[i]===e)return true;var toks=parts[i].split(" ");
+  /* re-join tokens like "200m sh" */var out=[];for(var j=0;j<toks.length;j++){if(toks[j]==="sh"||toks[j]==="W"||toks[j]==="R"||toks[j]==="Miles")out[out.length-1]+=" "+toks[j];else out.push(toks[j])}if(out.indexOf(e)>-1)return true}return false}
+
+var WIND=["100m","200m","100mH","110mH","LJ","TJ"];
+var FIELD=["HJ","PV","LJ","TJ","SP","DT","HT","JT"],COMB=["Decathlon","Heptathlon","Heptathlon sh","Pentathlon sh"];
+var WA_GROUP={"100m":"100m","50m":"100m","55m":"100m","60m":"100m","200m":"200m","200m sh":"200m","400m":"400m","300m":"400m","300m sh":"400m","400m sh":"400m","500m":"400m","500m sh":"400m",
+ "800m":"800m","600m":"800m","600m sh":"800m","800m sh":"800m","1000m":"800m","1000m sh":"800m","1500m":"1500m","1500m sh":"1500m","Mile":"1500m","Mile sh":"1500m","2000m":"1500m","2000m sh":"1500m","Mile R":"1500m",
+ "5000m":"5000m","3000m":"5000m","3000m sh":"5000m","2 Miles":"5000m","2 Miles sh":"5000m","5000m sh":"5000m","5km":"5000m","10000m":"10,000m","10km":"10,000m",
+ "110mH":"110mH","100mH":"100mH","50mH":"Sprint hurdles","55mH":"Sprint hurdles","60mH":"Sprint hurdles","400mH":"400mH","300mH":"400mH","3000mSC":"3000mSC","2000mSC":"3000mSC",
+ "HJ":"High Jump","PV":"Pole Vault","LJ":"Long Jump","TJ":"Triple Jump","SP":"Shot Put","DT":"Discus Throw","HT":"Hammer Throw","JT":"Javelin Throw"};
+var CATS=[["OW","OW · Olympic Games, World Championships"],["DF","DF · Diamond League Final"],["GW","GW · World Indoors, Diamond League meetings"],["GL","GL · Area Senior Outdoor Champs (e.g. Asian Champs)"],["A","A · Continental Games (Asian Games), CT Gold"],["B","B · National Senior Outdoor Champs, CT Silver"],["C","C · World U20 Champs, CT Bronze, Asian Grand Prix"],["D","D · National Indoor, CT Challenger, international meetings"],["E","E · National permit meetings, Area U18 Champs"],["F","F · Other competitions"]];
+var CH=["OW","DF","GW","GL","A","B","C","D","E","F"];
+function col(rows){return rows} /* rows: [placeLabel, values by CH (null = none)] */
+var T22=[["1st",260,170,140,120,100,70,42,28,18,11],["2nd",230,150,120,105,84,56,35,24,15,7],["3rd",210,130,110,95,77,49,31,21,13,4],["4th",190,120,100,85,70,42,28,18,11,null],["5th",175,110,90,75,63,38,25,15,9,null],["6th",160,100,80,70,56,34,22,13,7,null],["7th",150,95,75,65,49,30,19,12,null,null],["8th",140,90,70,60,42,27,16,11,null,null],["9th",91,63,49,42,35,24,14,null,null,null],["10th",84,56,42,35,31,21,12,null,null,null],["11th",77,49,35,31,27,18,10,null,null,null],["12th",70,42,32,28,24,15,8,null,null,null],["13th",66],["14th",63],["15th",60],["16th",57]];
+var T25=[["1st",215,130,115,95,70,50,35,25,14,8],["2nd",190,115,95,85,63,42,28,19,11,5],["3rd",170,100,85,77,56,35,24,15,9,3],["4th",155,87,77,70,49,31,21,13,8,null],["5th",140,80,70,63,42,27,18,11,7,null],["6th",130,73,63,56,35,24,16,9,6,null],["7th",120,66,56,49,31,21,14,8,null,null],["8th",110,59,49,42,27,18,13,7,null,null],["9th",77,49,39,32,24,15,11,null,null,null],["10th",70,42,32,28,21,13,9,null,null,null],["11th",63,38,28,24,18,11,8,null,null,null],["12th",56,35,25,21,15,9,7,null,null,null],["13th",52],["14th",49],["15th",46],["16th",43]];
+var T29=[["1st",200,125,100,80,56,42,32,21,14,7],["2nd",175,105,85,65,49,35,27,15,10,4],["3rd",160,95,75,55,42,31,22,13,7,2],["4th",145,85,65,46,35,27,18,11,6,null],["5th",130,75,56,39,31,24,15,10,5,null],["6th",120,67,49,35,27,21,13,9,4,null],["7th",110,60,42,31,24,18,12,8,null,null],["8th",100,53,35,28,21,15,11,7,null,null],["9th",67,35,28,21,18,13,10,null,null,null],["10th",60,28,22,18,15,11,9,null,null,null],["11th",53,24,19,15,13,9,8,null,null,null],["12th",46,21,17,14,11,8,7,null,null,null],["13th",42],["14th",38],["15th",35],["16th",32]];
+var T210=[["1st",70,50,42,32,21,14,7],["2nd",60,42,35,27,15,10,4],["3rd",53,35,31,22,13,7,2],["4th",46,31,27,18,11,6,null],["5th",39,27,24,15,10,5,null],["6th",35,24,21,13,9,4,null],["7th",31,21,18,12,8,null,null],["8th",27,18,15,11,7,null,null],["9th",24],["10th",21],["11th",18],["12th",15]];
+var T23=[["Q or q to final",100,70,60,50],["9th (not Q/q)",91,63,49,42],["10th",84,56,42,35],["11th",77,49,35,31],["12th",70,42,32,28],["13th",60],["14th",56],["15th",53],["16th",50]];
+var T24=[["Q or q to final",70,46,35,28],["11th (not Q/q)",66,39,28,25],["12th (not Q/q)",62,35,25,21],["13th (not Q/q)",59],["14th (not Q/q)",56],["15th (not Q/q)",53],["16th (not Q/q)",50]];
+var T26=[["Q or q to final",56],["10th–13th (not Q/q)",52],["14th (not Q/q)",49],["15th (not Q/q)",46],["16th (not Q/q)",43]];
+var T27=[["Q or q to final",null,60,42,35],["9th (not Q/q)",null,49,39,31],["10th",null,42,32,27],["11th",null,38,28,24],["12th",null,35,25,21]];
+var T28=[["Q or q to final",null,35,25,21],["11th (not Q/q)",null,31,21,17],["12th (not Q/q)",null,28,18,14]];
+
+function famOf(e){var g=WA_GROUP[e];if(e==="10km")return "10km";if(g==="5000m"||g==="3000mSC")return "5000";if(g==="10,000m")return "10000";if(g)return "TF";return null}
+function tableFor(e,round){var f=famOf(e);if(!f||round==="N")return null;
+  if(round==="F")return f==="TF"?{t:T22,n:"Table 2.2 · Track & field final"}:f==="5000"?{t:T25,n:"Table 2.5 · 5000m and 3000mSC groups, final"}:f==="10000"?{t:T29,n:"Table 2.9 · 10,000m final"}:{t:T210,n:"Table 2.10 · 10km road race, final"};
+  if(f==="TF")return round==="R9"?{t:T23,n:"Table 2.3 · Round before the final, final of 9 or fewer"}:{t:T24,n:"Table 2.4 · Round before the final, final of 10 or more"};
+  if(f==="5000")return {t:"R5",n:"Tables 2.6–2.8 · 5000m and 3000mSC groups, round before the final"};
+  return {t:null,n:"No round-before-final placing scores for this event"}}
+function rowsFor(e,round,cat){var tf=tableFor(e,round);if(!tf)return null;var t=tf.t;
+  if(t==="R5")t=cat==="OW"?T26:(round==="R9"?T27:T28);return t}
+
+/* ---------- state + helpers ---------- */
+var $=function(i){return document.getElementById(i)};
+function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(_){return null}}
+var st=store("wasr.state")||{};var g=st.g||"m";
+var ROAD=["Mile R","5km","10km","15km","10 Miles R","20km","HM","25km","30km","Marathon","100km","3km W","5km W","10km W","15km W","20km W","HM W","30km W","35km W","Marathon W","50km W"];
+function typeOf(e){return FIELD.indexOf(e)>-1?"field":COMB.indexOf(e)>-1?"comb":"time"}
+function hint(e){var t=typeOf(e);if(t==="field")return "Metres, for example "+(e==="HJ"?"2.20":e==="PV"?"5.60":e==="LJ"?"7.85":e==="TJ"?"16.40":e==="SP"?"19.50":e==="DT"?"60.10":e==="HT"?"72.30":"82.50");
+  if(t==="comb")return "Total points, for example "+(/Dec/.test(e)?"7800":"6000");
+  if(ROAD.indexOf(e)>-1)return "Whole seconds, for example "+(/Marathon|HM|30km|25km|20km|50km|35km/.test(e)?"2:12:30":"28:45");
+  return "Hundredths, for example "+(/^(50|55|60|100|110)m/.test(e)?"10.25":/^(200|300)m/.test(e)?"20.80":/^(400|500)m/.test(e)?"46.10":"3:38.50")}
+function events(){return ORDER.filter(function(e){var r=W.waScore(g,e,typeOf(e)==="time"?"10":typeOf(e)==="comb"?"5000":"5");return !/^Unknown/.test(r)})}
+function drawEvents(keep){var list=events(),html="",gi;
+  GROUPS.forEach(function(G){var items=list.filter(function(e){return inGroup(G[1],e)});if(items.length)html+='<optgroup label="'+G[0]+'">'+items.map(function(e){return '<option value="'+e+'">'+label(e)+'</option>'}).join("")+'</optgroup>'});
+  $("ev").innerHTML=html;if(keep&&list.indexOf(keep)>-1)$("ev").value=keep}
+function drawLanes(){Array.prototype.forEach.call(document.querySelectorAll("#lanes button"),function(b){b.setAttribute("aria-pressed",b.dataset.g===g)})}
+$("cat").innerHTML=CATS.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>'}).join("");
+var CATHELP={OW:"Olympic Games and World Athletics Championships.",DF:"Diamond League Finals.",GW:"World Indoor Championships, World Cross Country (senior race), Diamond League meetings, Continental Tour Gold (hammer only).",GL:"Area Senior Outdoor Championships, e.g. the Asian Athletics Championships.",A:"Continental multi-sport Games (e.g. Asian Games), Continental Tour Gold and Indoor Tour Gold, Area Senior Indoor Championships.",B:"National Senior Outdoor Championships (one per country per year), regional Games, Continental Tour Silver.",C:"World U20 Championships, Continental Tour Bronze, Asian Grand Prix Series.",D:"National Senior Indoor and Winter Throwing Championships, Continental Tour Challenger, traditional international meetings.",E:"International matches with permit, designated national permit meetings, Area U18 Championships.",F:"National permit meetings and all other competitions."};
+function num(v){v=String(v).trim().replace(",",".");return v===""?NaN:Number(v)}
+function fmt(x){return (Math.round(x*10)/10).toString()}
+function sign(x){return x>0?"+"+fmt(x):x<0?"−"+fmt(-x):"0"}
+
+function drawPlaces(){var e=$("ev").value,r=$("round").value,c=$("cat").value,rows=rowsFor(e,r,c),keep=$("place").value;
+  if(!rows){$("place").innerHTML='<option value="">–</option>';$("place").disabled=true;return}
+  $("place").disabled=false;
+  var ci=CH.indexOf(c)+1;$("place").innerHTML=rows.map(function(rw,i){var v=rw[ci];return '<option value="'+i+'"'+(v==null?' disabled':'')+'>'+rw[0]+(v==null?' (no score)':'')+'</option>'}).join("")+'<option value="none">Outside the scoring places</option>';
+  if(keep&&$("place").querySelector('option[value="'+keep+'"]:not([disabled])'))$("place").value=keep}
+
+function render(){var e=$("ev").value,t=typeOf(e),mark=$("mark").value.trim();
+  $("markHint").textContent=hint(e);$("mark").placeholder=hint(e).replace(/^.*example /,"");
+  var hasWind=WIND.indexOf(e)>-1;$("windBox").hidden=!hasWind;$("trWind").hidden=!hasWind;
+  $("wind").disabled=$("noWind").checked;
+  $("grp").textContent=WA_GROUP[e]?"Event group: "+(g==="w"?"Women's ":g==="m"?"Men's ":"")+WA_GROUP[e]:"Result score only";
+  $("catHelp").textContent=CATHELP[$("cat").value];
+  /* result score */
+  var res=null,over=false,errTxt="";
+  if(mark){var r=W.waScore(g,e,mark);if(typeof r==="number")res=r;else if(r==="+1400"){res=1400;over=true}else errTxt=r.replace(/^Invalid mark for track events/,"That isn't a valid time").replace(/^Invalid mark for field events/,"That isn't a valid distance").replace(/^Invalid mark for combined events/,"Combined events take whole points");}
+  $("err").hidden=!errTxt;$("err").textContent=errTxt?errTxt+". "+hint(e)+".":"";
+  $("vRes").textContent=res==null?"–":(over?"1400+":res);
+  $("whyRes").textContent=res==null?"Type a mark":over?"Better than the 1400-point line of the table":res===0?"Below the 1-point line of the table":"WA Scoring Tables 2025 · "+(g==="m"?"Men":g==="w"?"Women":"Mixed");
+  /* wind */
+  var wm=0,wtxt="";
+  if(hasWind){if($("noWind").checked){wm=-30;wtxt="No wind reading: −30"}
+    else{var w=num($("wind").value);if(isNaN(w)){wtxt="Enter the wind reading";wm=null}
+      else if(w>2.0){wm=-6*w;wtxt="Tailwind over +2.0: 6 × "+fmt(w)}
+      else if(w>=0){wm=0;wtxt="Tailwind 0 to +2.0: no change"}
+      else{wm=6*(-w);wtxt="Headwind: 6 × "+fmt(-w)}}
+    $("vWind").innerHTML=wm==null?"–":'<span class="'+(wm>0?"pos":wm<0?"neg":"")+'">'+sign(wm)+'</span>';$("whyWind").textContent=wtxt}
+  /* placing */
+  var rnd=$("round").value,cat=$("cat").value,tf=tableFor(e,rnd),rows=rowsFor(e,rnd,cat),pl=0,ptxt="";
+  if(rnd==="N"){ptxt="Not included"}
+  else if(!tf){ptxt="Not in the track & field placing tables (see WA rules for "+(COMB.indexOf(e)>-1?"combined events":ROAD.indexOf(e)>-1?"road":/x4|4x/.test(e)?"relays":"this event")+")"}
+  else if(!rows){ptxt=tf.n}
+  else{var pv=$("place").value,ci=CH.indexOf(cat)+1;
+    if(pv==="none"||pv===""){pl=0;ptxt="No placing score for this place"}
+    else{var rw=rows[+pv],v=rw?rw[ci]:null;pl=v==null?0:v;ptxt=(rw?rw[0]:"")+" · category "+cat+(v==null?" · no score":"")}}
+  $("vPl").innerHTML='<span class="'+(pl>0?"pos":"")+'">'+(pl>0?"+"+pl:"0")+'</span>';$("whyPl").textContent=ptxt;
+  /* total */
+  var tot=res==null||wm==null?null:res+(hasWind?wm:0)+pl;
+  $("vTot").textContent=tot==null?"–":fmt(tot);$("perf").textContent=tot==null?"–":fmt(tot);
+  /* notes */
+  var n=[];if(e==="LJ"||e==="TJ")n.push("Long and triple jump: if this jump is wind-aided, WA may use the athlete's best legal jump in the same competition (wind +2.0 or less) when that scores higher.");
+  if(/^4x/.test(e))n.push("Relay points are team points.");
+  n.push("Only results with senior hurdles and implements count. Junior or youth implements are not scored by WA.");
+  $("eventNote").hidden=false;$("eventNote").textContent=n.join(" ");
+  /* reverse + ladder */
+  var want=parseInt($("want").value,10);$("wantMark").textContent=want>=1&&want<=1400?(W.waMark(g,e,want)||"–"):"–";
+  var L=[1400,1300,1250,1200,1150,1100,1050,1000,950,900,800,700],h="";for(var i=0;i<L.length;i+=2)h+='<tr><td>'+L[i]+'</td><td>'+W.waMark(g,e,L[i])+'</td><td>'+L[i+1]+'</td><td>'+W.waMark(g,e,L[i+1])+'</td></tr>';$("ladder").innerHTML=h;
+  /* placing table display */
+  if(rows){$("ptabTitle").textContent=(tf.t==="R5"?(cat==="OW"?"Table 2.6 · 5000m and 3000mSC, round before final (OW)":rnd==="R9"?"Table 2.7 · 5000m and 3000mSC, round before final, final of 9 or fewer":"Table 2.8 · 5000m and 3000mSC, round before final, final of 10 or more"):tf.n)+". Your place and category are highlighted. “not Q/q” means the athlete did not qualify for the final.";
+    var maxc=0;rows.forEach(function(rw){maxc=Math.max(maxc,rw.length-1)});
+    var th='<tr><th>Place</th>'+CH.slice(0,maxc).map(function(c){return '<th>'+c+'</th>'}).join("")+'</tr>';
+    $("ptabWrap").innerHTML='<table class="ptab"><thead>'+th+'</thead><tbody>'+rows.map(function(rw,i){return '<tr><td>'+rw[0]+'</td>'+CH.slice(0,maxc).map(function(c,j){var v=rw[j+1];return '<td class="'+(String(i)===$("place").value&&c===cat?"on":"")+'">'+(v==null?"":v)+'</td>'}).join("")+'</tr>'}).join("")+'</tbody></table>'}
+  else{$("ptabTitle").textContent=tf?tf.n+".":"No placing table applies to this event and round in the track & field section of the WA rules.";$("ptabWrap").innerHTML='<p class="hint" style="margin:0">Nothing to show.</p>'}
+  store("wasr.state",{g:g,ev:e,mark:mark,wind:$("wind").value,nw:$("noWind").checked,cat:cat,round:rnd,place:$("place").value})}
+
+$("lanes").addEventListener("click",function(x){var b=x.target.closest("button");if(!b)return;var old=$("ev").value;g=b.dataset.g;drawLanes();drawEvents(old==="110mH"&&g==="w"?"100mH":old==="100mH"&&g==="m"?"110mH":old);$("mark").value="";drawPlaces();render()});
+$("ev").addEventListener("change",function(){$("mark").value="";drawPlaces();render()});
+["mark","wind","want"].forEach(function(i){$(i).addEventListener("input",render)});
+$("noWind").addEventListener("change",render);
+["cat","round"].forEach(function(i){$(i).addEventListener("change",function(){drawPlaces();render()})});
+$("place").addEventListener("change",render);
+
+/* start: a realistic example — men's 100m final at the National Senior Outdoor Championships */
+drawLanes();drawEvents(st.ev||"100m");
+$("cat").value=st.cat||"B";$("round").value=st.round||"F";
+$("mark").value=st.ev?(st.mark||""):"10.23";$("wind").value=st.ev?(st.wind||""):"+0.8";$("noWind").checked=!!st.nw;
+drawPlaces();if(st.place)$("place").value=st.place;else $("place").value="0";
+render();
+</script>
+</body>
+</html>
