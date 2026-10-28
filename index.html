@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>AFI Junior Points Calculator</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Junior performance points for U14, U16 and U18 athletics events, anchored to the Indian National Record (NR = 1000 points).">
+<meta name="description" content="Score any U14, U16 or U18 athletics performance in India. The Indian National Record in each event is worth 1000 points.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
@@ -101,6 +101,18 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
 @media (max-width:620px){.lanes{grid-template-columns:repeat(3,1fr)}.lanes button:nth-child(4){border-left:0}.lanes button:nth-child(n+4){border-top:2px solid var(--lane)}
   .steps,.winners{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+.rec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.rec input{font:500 18px var(--mono)}
+.rec .btn{padding:10px 12px}
+.holder{font-size:13px;color:var(--muted);margin-top:4px}
+.edited{color:var(--track);font-weight:600}
+.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end;margin-top:12px}
+textarea{width:100%;min-height:120px;font:500 14px/1.5 var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.paste{display:grid;gap:8px;margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
+.msg{font-size:14px;color:var(--muted);min-height:1.4em}
+.tag{font:600 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:1px 5px;margin-left:6px}
+@media (max-width:620px){.toolbar{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -108,7 +120,7 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
 <header>
   <div class="eyebrow">Athletics Federation of India · Junior Scoring</div>
   <h1>Junior Points Calculator</h1>
-  <p class="lede">Choose the age category, then the event, then type the mark. Points work out on their own. The Indian National Record in every event is worth exactly 1000 points.</p>
+  <p class="lede">Works for any junior competition in India: state, district, zonal or national. Choose the age category, then the event, then type the mark. The Indian National Record in each event is worth exactly 1000 points.</p>
 </header>
 
 <nav class="lanes" id="lanes" aria-label="Age category"></nav>
@@ -120,13 +132,19 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
       <select id="ev"></select>
     </div>
     <div class="field">
-      <label for="mark" id="markLabel">Mark</label>
+      <label for="mark">Mark</label>
       <input id="mark" class="mark" inputmode="decimal" autocomplete="off" spellcheck="false">
       <span class="hint" id="markHint"></span>
     </div>
+    <div class="field">
+      <label for="rec">Record worth 1000 points</label>
+      <div class="rec">
+        <input id="rec" inputmode="decimal" autocomplete="off" spellcheck="false">
+        <button class="btn" id="recReset" type="button">Use National Record</button>
+      </div>
+      <span class="holder" id="holder"></span>
+    </div>
     <dl class="facts">
-      <dt>National Record</dt><dd id="fNR">–</dd>
-      <dt>Meet Record</dt><dd id="fMR">–</dd>
       <dt>Scored like</dt><dd id="fPar">–</dd>
       <dt>Unit</dt><dd id="fUnit">–</dd>
     </dl>
@@ -135,7 +153,7 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
     <div class="score"><span class="num" id="pts">–</span><span class="unit">junior points</span></div>
     <div><span class="chip none" id="chip">Type a mark</span></div>
     <div>
-      <div class="hint" id="pctTxt">Share of the National Record</div>
+      <div class="hint" id="pctTxt">Share of the record</div>
       <div class="bar"><i id="pctBar"></i></div>
     </div>
     <table class="ladder" aria-label="Marks needed for points">
@@ -147,17 +165,27 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
 </section>
 
 <section>
-  <h2>Best Athlete sheet</h2>
-  <p class="lede">Add one row per performance. Each row is scored against its own category and event, and the highest score in each category is marked as the Best Athlete. Rows stay in this browser only.</p>
-  <div class="btns">
-    <button class="btn primary" id="addRow" type="button">Add a row</button>
-    <button class="btn" id="loadNat" type="button">Load 2026 Junior Nationals medallists</button>
-    <button class="btn" id="clearRows" type="button">Clear sheet</button>
-    <button class="btn" id="copyCsv" type="button">Copy as CSV</button>
+  <h2>Meet sheet and Best Athlete</h2>
+  <p class="lede">Score a whole competition. Add athletes one by one or paste rows from Excel. Every row is scored against its own category and event, and the top score in each category is marked as Best Athlete. Your sheet stays in this browser only.</p>
+  <div class="toolbar">
+    <div class="field"><label for="meet">Competition name</label><input id="meet" placeholder="e.g. Bihar State Junior Championships 2026"></div>
+    <div class="btns" style="margin-top:0">
+      <button class="btn primary" id="addRow" type="button">Add a row</button>
+      <button class="btn" id="pasteToggle" type="button" aria-expanded="false">Paste from Excel</button>
+      <button class="btn" id="copyCsv" type="button">Copy results</button>
+      <button class="btn" id="clearRows" type="button">Clear sheet</button>
+    </div>
+  </div>
+  <div class="paste" id="pasteBox" hidden>
+    <label for="pasteTxt">Paste rows: Name, State, Category, Event, Mark (tab or comma separated, one athlete per line)</label>
+    <textarea id="pasteTxt" spellcheck="false" placeholder="Ravi Kumar	Bihar	Boys U16	Long Jump	5.02
+Anjali	Kerala	Girls U14	Triathlon A	2310"></textarea>
+    <div class="btns" style="margin-top:0"><button class="btn primary" id="pasteGo" type="button">Add these rows</button></div>
+    <div class="msg" id="pasteMsg"></div>
   </div>
   <div class="tablewrap" style="margin-top:12px">
     <table class="sheet">
-      <thead><tr><th>Rank</th><th>Athlete</th><th>State</th><th>Category</th><th>Event</th><th>Mark</th><th style="text-align:right">Points</th><th></th></tr></thead>
+      <thead><tr><th>Rank</th><th>Athlete</th><th>State / District</th><th>Category</th><th>Event</th><th>Mark</th><th style="text-align:right">Points</th><th></th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
@@ -169,41 +197,43 @@ footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);paddin
   <ol class="steps">
     <li><b>Pick the senior event it grows into</b>80m Hurdles uses the hurdles table, Kids Javelin uses Javelin, Triathlon and Pentathlon use the Decathlon (boys) or Heptathlon (girls) table.</li>
     <li><b>Take the World Athletics curve</b>Same shape seniors use: better marks earn points faster near the top.</li>
-    <li><b>Stretch it to our NR</b>We rescale the curve so the Indian National Record of this category lands on exactly 1000.</li>
+    <li><b>Stretch it to the record</b>The curve is rescaled so the Indian National Record of the category lands on exactly 1000.</li>
     <li><b>Score the mark</b>Running: <code>a × (b − time)²</code>. Jumps and throws: <code>a × (mark + b)² + c</code>. Jumps use centimetres.</li>
     <li><b>Round down</b>Points are always rounded down to a whole number, like World Athletics does.</li>
   </ol>
 </section>
 
 <footer>
-  Records used are the pre-meet National Records printed for the 41st National Junior Athletics Championships 2026. When a record changes, update the <code>nr</code> value for that event and the curve re-anchors automatically. U14 and U16 use these points for Best Athlete. U18 values are shown for analysis; official U18 and U20 awards use World Athletics points on senior equipment.
+  Covers every individual event on the AFI programme for U14 (Triathlon A, B, C and Kids Javelin), U16 (60m, 600m, 80m Hurdles, High Jump, Long Jump, Shot Put, Javelin, Pentathlon) and U18 (12 events with youth implements). National Records are as of 28 October 2026, including those set at the 41st National Junior Championships. When a record changes, type the new mark in "Record worth 1000 points" and every score re-anchors. U18 scores are for comparison. Official U18 and U20 awards use World Athletics points.
 </footer>
 </div>
-
 <script>
 /* Each event: s=category, e=event, k=kind (t=time in s, cm=jump in metres scored in cm, m=throw in metres, s=combined total),
-   a,b,c=junior curve constants (already anchored so nr = 1000), nr/mr=records, ji=junior-implement note, r=2026 final results. */
-var EVENTS=[{"s":"Boys U14","e":"Triathlon B","k":"s","a":5.259295674113875e-06,"b":30682.28119437662,"c":-5000,"nr":"3094","mr":"2953","ji":"","r":[[1,"Sumit Yadav","Uttar Pradesh","3256","NR, MR",1057],[2,"Sadhon Ghosh","West Bengal","3192","",1034],[3,"Pradeep Varsa","Telangana","2784","",890],[4,"Yuvaraj D Kunder","Karnataka","2777","",887],[5,"Shivraj Sen","Rajasthan","2730","",871],[6,"Vansh Kumar","Haryana","2729","",871],[7,"Nihal Raj","Bihar","2725","",869],[8,"Sundram Kumar","Maharashtra","2589","",821]]},{"s":"Girls U16","e":"Javelin Throw","k":"m","a":0.005764971183198386,"b":1861.7131133456705,"c":-20000,"nr":"46.87","mr":"46.87","ji":"","r":[[1,"Minakshi","Haryana","54.40","NR, MR",1166],[2,"Rahi Chavan","Maharashtra","52.02","",1113],[3,"Sahiba Bano","Madhya Pradesh","51.13","",1093],[4,"Somya Dhaka","Haryana","48.65","",1039],[5,"Monika Baidya","West Bengal","46.17","",984],[6,"Priyanshi","Rajasthan","39.23","",832],[7,"Anjali Anjali","Uttar Pradesh","37.73","",799],[8,"Padmavathi B","Karnataka","37.54","",795]]},{"s":"Girls U14","e":"Triathlon B","k":"s","a":5.031532424905207e-06,"b":31385.298577251277,"c":-5000,"nr":"3147","mr":"3147","ji":"","r":[[1,"Pinki Pal","West Bengal","2894","",912],[2,"Devanshi Amit Kale","Maharashtra","2837","",892],[3,"Himadri Bhardwaj","Uttar Pradesh","2824","",888],[4,"Rs Riya","Tamil Nadu","2799","",879],[5,"Vaibhavi S","Odisha","2786","",875],[6,"Naini Sahasra","Telangana","2754","",864],[7,"Pawani Pawani","Haryana","2552","",795],[8,"Shrejal Goyat","Chandigarh","2508","",780]]},{"s":"Women U18","e":"Javelin Throw","k":"m","a":0.004157825511782583,"b":2192.190030414926,"c":-20000,"nr":"55.19","mr":"54.13","ji":"500 g javelin","r":[[1,"Misti Karmakar","West Bengal","51.41","",929],[2,"Apikshakumari Gamit","Gujarat","49.22","",888],[3,"Shivani Patel","Madhya Pradesh","47.55","",857],[4,"Muskan","Haryana","45.48","",818],[5,"Siya Banjara","Rajasthan","44.72","",804],[6,"Kanak Devi","Uttar Pradesh","41.48","",744],[7,"Rajkumari Yadav","Jharkhand","38.85","",695],[8,"S Sri Sabarisha","Tamil Nadu","38.04","",680]]},{"s":"Women U18","e":"Shot Put","k":"m","a":0.045217463680777205,"b":664.6353876302575,"c":-20000,"nr":"16.85","mr":"16.85","ji":"3 kg shot","r":[[1,"Joy Baidwan","Chandigarh","16.06","",951],[2,"Jasmine Kaur","Punjab","15.55","",919],[3,"Hema","Haryana","15.30","",904],[4,"Drona Choudhary","Rajasthan","15.15","",895],[5,"Srushti Doifode","Maharashtra","14.83","",875],[6,"M Reddy Sanjana","Karnataka","14.80","",873],[7,"Payal Payal","Haryana","14.54","",857],[8,"Anushka Gutte","Maharashtra","13.74","",808]]},{"s":"Girls U14","e":"Triathlon C","k":"s","a":7.853033075199825e-06,"b":25122.201180837612,"c":-5000,"nr":"2519","mr":"2519","ji":"","r":[[1,"Prakriti Atal","Delhi","2644","NR, MR",1054],[2,"Joyita Pakhira","West Bengal","2607","",1038],[3,"Lakshya Saravanan","Tamil Nadu","2578","",1025],[4,"Nehal Juneja","Uttar Pradesh","2515","",998],[5,"Ritika","Haryana","2503","",993],[6,"Alle Samyuktha Sri","Telangana","2496","",990],[7,"Dhriti Madkaikar","Goa","2440","",965],[8,"Neevia Laishram","Manipur","2417","",955]]},{"s":"Boys U14","e":"Triathlon C","k":"s","a":9.727593278841024e-06,"b":22560.500878218103,"c":-5000,"nr":"2275","mr":"2510","ji":"","r":[[1,"Priyanshu Pal","Uttar Pradesh","2472","",1095],[2,"Aniruddha Katake","Maharashtra","2389","",1055],[3,"Rakshit Maingle","Haryana","2366","",1044],[4,"Padam Singh","Uttarakhand","2344","",1033],[5,"Shivam Bairwa","Rajasthan","2336","",1029],[6,"Rathod Sonu","Telangana","2275","",1000],[7,"Sarik Sarik","Madhya Pradesh","2245","",985],[8,"Sandeep Yallapp Vad","Karnataka","2221","",973]]},{"s":"Girls U16","e":"60m","k":"t","a":25.312924607744808,"b":13.885340893643775,"c":0,"nr":"7.60","mr":"7.60","ji":"","r":[[1,"Kasturi Chavan","Maharashtra","7.75","",952],[2,"Sanidya Shet","Karnataka","7.76","",949],[3,"Amieyra Khoslla","Delhi","7.79","",940],[4,"M Rithika Mahendran","Tamil Nadu","7.84","",925],[5,"Jansi Kewat","Madhya Pradesh","7.86","",918],[6,"Kaviisri Balaji","Tamil Nadu","7.89","",909],[7,"Neelamma M K","Karnataka","7.94","",894],[8,"Shravani Ashok Kambl","Maharashtra","8.07","",856]]},{"s":"Boys U16","e":"60m","k":"t","a":68.04482763947958,"b":10.743561553042253,"c":0,"nr":"6.91","mr":"","ji":"","r":[[1,"Sarvesh Dev K","Tamil Nadu","6.94","",984],[2,"Arambam Raju Singh","Karnataka","6.95","",979],[3,"Aryan Babu Peketi","Telangana","7.07","",918],[4,"Raghavendra Var Man","Andhra Pradesh","7.09","",908],[5,"Milan George","Kerala","7.10","",903],[6,"Shreesh Ghosh","West Bengal","7.14","",883],[7,"Abhay Singh","Chandigarh","7.16","",873],[8,"Sandeep Yadav","Bihar","7.17","",868]]},{"s":"Women U18","e":"100m","k":"t","a":10.508584681790598,"b":21.37501374953666,"c":0,"nr":"11.62","mr":"11.62","ji":"","r":[[1,"T Mrithika","Tamil Nadu","11.71","",981],[2,"Suchithra S","Karnataka","11.98","",927],[3,"Saawari Kulkarni","Maharashtra","12.09","",905],[4,"Anshika Sharma","Chandigarh","12.24","",876],[5,"Nupura Holla","Karnataka","12.25","",875],[6,"Heeral Saini","Chandigarh","12.30","",865],[7,"Karishma","Uttar Pradesh","12.30","",865],[8,"Mamta Marry Murmu","Jharkhand","12.44","",838]]},{"s":"Men U18","e":"100m","k":"t","a":25.428087345872154,"b":16.731091719579542,"c":0,"nr":"10.46","mr":"10.63","ji":"","r":[[1,"Neil Samraj R","Tamil Nadu","10.45","NR, MR",1003],[2,"J.Nived Krishna","Kerala","10.67","",934],[3,"Abhishek Naruka","Rajasthan","10.78","",900],[4,"Sanket Swami","Haryana","10.86","",876],[5,"Subhashu Kumar","Bihar","10.87","",873],[6,"Pushpendar Kumar","Delhi","10.89","",867],[7,"Surya Thakur","Chandigarh","10.95","",849],[8,"Umesh Umesh","Uttar Pradesh","10.98","",841]]},{"s":"Girls U14","e":"Triathlon A","k":"s","a":7.92839161748509e-06,"b":25002.524160523975,"c":-5000,"nr":"2507","mr":"2507","ji":"","r":[[1,"Meera Bobal","Delhi","2617","NR, MR",1048],[2,"Yazhini A M","Tamil Nadu","2503","",998],[3,"Tamanna Tamanna","Punjab","2448","",974],[4,"Sriparna Malo","West Bengal","2416","",960],[5,"Keya Patel","Gujarat","2341","",927],[6,"Nyala Siri","Telangana","2312","",915],[7,"Ananya Pandey","Uttar Pradesh","2197","",865],[8,"Princy Princy","Haryana","2189","",862]]},{"s":"Men U18","e":"Javelin Throw","k":"m","a":0.0019034706487845638,"b":3239.767578020996,"c":-20000,"nr":"81.75","mr":"76.50","ji":"700 g javelin","r":[[1,"Krishan Chandra","Madhya Pradesh","74.83","",912],[2,"Pushpak Nelwade","Karnataka","73.43","",894],[3,"Salauddin Salauddin","Madhya Pradesh","69.79","",849],[4,"Harsh Mishra","Uttar Pradesh","68.92","",838],[5,"Ayush Raj","Bihar","68.56","",833],[6,"Vansh Chauhan","Uttar Pradesh","68.39","",831],[7,"Aalok Choudhary","Rajasthan","68.34","",830],[8,"Chirag Yadav","Haryana","63.33","",767]]},{"s":"Boys U16","e":"Shot Put","k":"m","a":0.04484370510807979,"b":666.899480742008,"c":-20000,"nr":"17.42","mr":"","ji":"","r":[[1,"Tharanesh C","Tamil Nadu","17.86","NR, MR",1027],[2,"Varadraaj Jagtap","Maharashtra","17.10","",980],[3,"Abhishek Kumar","Uttar Pradesh","17.08","",979],[4,"Rakshit Beniwal","Haryana","16.94","",970],[5,"Vishal","Rajasthan","16.28","",930],[6,"Shyamsharan Desai","Gujarat","15.91","",907],[7,"Yuvraj Samdhyan","Haryana","15.73","",896],[8,"Aditya Chauhan","Bihar","14.13","",798]]},{"s":"Boys U14","e":"Triathlon A","k":"s","a":8.498202161349109e-06,"b":24137.25676377269,"c":-5000,"nr":"2434","mr":"2244","ji":"","r":[[1,"Saurav Bind","Uttar Pradesh","2195","",892],[2,"Rajveer Gurjar","Rajasthan","2179","",885],[3,"Barno Das","West Bengal","2137","",866],[4,"Sanskar Chaudhary","Uttarakhand","2060","",832],[5,"Aman Yadav","Delhi","2058","",831],[6,"Nishant Kagra","Haryana","2002","",806],[7,"Aditya Raj","Bihar","1998","",804],[8,"Abin M","Kerala","1991","",801]]},{"s":"Girls U16","e":"Shot Put","k":"m","a":0.06751145632590728,"b":543.9360234671366,"c":-20000,"nr":"13.79","mr":"","ji":"","r":[[1,"Tejaswini G Rao","Karnataka","13.48","",976],[2,"Hanpreet","Haryana","13.10","",948],[3,"Jayani Patil","Maharashtra","12.33","",890],[4,"Modini Janrdhana","Karnataka","12.21","",881],[5,"Anmol Anmol","Haryana","12.02","",866],[6,"Payal Gavali","Maharashtra","11.67","",840],[7,"Divya Kumari","Uttar Pradesh","11.52","",829],[8,"Ananya Roy","West Bengal","11.44","",823]]},{"s":"Women U18","e":"400m","k":"t","a":0.3676311554902844,"b":105.00474728450415,"c":0,"nr":"52.85","mr":"53.85","ji":"","r":[[1,"Tanu Chaudhary","Uttar Pradesh","53.40","MR",979],[2,"Sehnoor Bawa","Punjab","54.27","",946],[3,"Sahaya Jemima M","Tamil Nadu","55.66","",895],[4,"Anandi Nallavelli","Telangana","55.68","",894],[5,"Swanandi Sawant","Maharashtra","55.88","",887],[6,"Shamathmika K Jois","Karnataka","55.90","",886],[7,"Bhanavi P S","Karnataka","56.01","",882],[8,"Lakshita","Haryana","56.47","",865]]},{"s":"Men U18","e":"400m","k":"t","a":1.0522687686173644,"b":77.81738310689309,"c":0,"nr":"46.99","mr":"47.48","ji":"","r":[[1,"Lodenge Ramu","Telangana","46.80","NR, MR",1012],[2,"Manas Shinde","Maharashtra","47.24","",983],[3,"Aditya","Haryana","47.79","",948],[4,"Shangar Mg","Tamil Nadu","47.86","",944],[5,"Lakshya Punia","Karnataka","48.29","",917],[6,"Mastan Koyada","Telangana","48.64","",895],[7,"Sinil S","Kerala","48.76","",888]]},{"s":"Boys U16","e":"Javelin Throw","k":"m","a":0.00258724700138016,"b":2778.8685329765412,"c":-20000,"nr":"70.12","mr":"","ji":"","r":[[1,"Daksh Solanki","Haryana","70.32","NR, MR",1002],[2,"Divyanshu Saharan","Rajasthan","68.23","",972],[3,"Prince Dhatterwal","Haryana","68.07","",969],[4,"Kishu Singh","Bihar","67.75","",965],[5,"Utkarsh Singh","Uttar Pradesh","64.22","",913],[6,"Arjun Saini","Rajasthan","62.94","",894],[7,"Mugdha Poran Borah","Assam","61.65","",875],[8,"Shivam Shivam","Uttar Pradesh","60.77","",862]]},{"s":"Women U18","e":"Long Jump","k":"cm","a":0.00016876869788674508,"b":5314.517618840671,"c":-5000,"nr":"6.48","mr":"6.12","ji":"","r":[[1,"Kinjalben Bhema Thak","Gujarat","5.96","",895],[2,"Obami Murmu","West Bengal","5.68","",840],[3,"Dixsha","Haryana","5.65","",834],[4,"M Jenista Shanu","Tamil Nadu","5.61","",826],[5,"Aswathy V M","Kerala","5.58","",820],[6,"Komal","Haryana","5.56","",816],[7,"Mirunisha Kumar","Tamil Nadu","5.47","",798],[8,"Magheli Buragohain","Assam","5.39","",782]]},{"s":"Men U18","e":"Shot Put","k":"m","a":0.03074017378350379,"b":805.4859400006801,"c":-20000,"nr":"21.04","mr":"20.99","ji":"5 kg shot","r":[[1,"Nishchay","Haryana","19.94","",944],[2,"Nitesh Kumar","Haryana","19.91","",942],[3,"Meet Singh Gill","Uttar Pradesh","19.22","",907],[4,"Balkaran Singh","Punjab","18.48","",870],[5,"Ranvijay Singh Buttar","Punjab","18.17","",854],[6,"Anirudha Nalawade","Maharashtra","17.82","",836],[7,"Yuvraj Singh","Rajasthan","17.81","",836],[8,"Shivendra Singh Rath","Madhya Pradesh","17.01","",795]]},{"s":"Girls U16","e":"High Jump","k":"cm","a":0.00509744698840327,"b":928.9238743831302,"c":-5000,"nr":"1.56","mr":"","ji":"","r":[[1,"Nivetha S","Tamil Nadu","1.52","",955],[2,"Naisha Raghav","Maharashtra","1.50","",933],[3,"Ankita Prajapati","Uttar Pradesh","1.48","",911],[4,"Resma Behera Nrupara","Odisha","1.45","",878],[5,"Shraddha Soni","Madhya Pradesh","1.45","",878],[6,"Theertha Nani","Kerala","1.40","",824],[6,"Shreya Lathiya","Gujarat","1.40","",824],[6,"Radadiya Ayushi Lalit","Gujarat","1.40","",824]]},{"s":"Boys U16","e":"80m Hurdles","k":"t","a":14.976540343861416,"b":18.45135821811657,"c":0,"nr":"10.28","mr":"10.36","ji":"","r":[[1,"Amanuel Kisku","Jharkhand","10.10","NR, MR",1044],[2,"Gouresh Binoy","Kerala","10.11","",1042],[3,"Rohit Raj","Bihar","10.26","",1004],[4,"Ripudaman M","Tamil Nadu","10.40","",970],[5,"Swayamsiddha Sahoo","Odisha","10.52","",942],[6,"Dilpreet Dhillon","Punjab","10.54","",937],[7,"Golu Kumar Yadav","Bihar","10.70","",899]]},{"s":"Boys U14","e":"Kids Javelin Throw","k":"m","a":0.00345827955128667,"b":2403.570686323834,"c":-20000,"nr":"60.65","mr":"","ji":"","r":[[1,"Varun Bhambhu","Haryana","71.20","NR, MR",1180],[2,"Vinay Baaniya","Uttar Pradesh","62.17","",1025],[3,"Rahul Kumar","Bihar","58.55","",964],[4,"Rathod Sonu","Telangana","53.68","",881],[5,"Paras Rajwar","Uttarakhand","53.68","",881],[6,"Shibam Bala","West Bengal","52.07","",854],[7,"Shrijesh Barua","Delhi","49.20","",805],[8,"Kowshik Payam","Telangana","48.33","",790]]},{"s":"Girls U16","e":"80m Hurdles","k":"t","a":6.024692091183359,"b":24.383461738152885,"c":0,"nr":"11.50","mr":"11.50","ji":"","r":[[1,"Varshika Balakrishna","Tamil Nadu","11.61","",982],[2,"Janhavi Patole","Maharashtra","11.78","",957],[3,"Shashwati Suresh","Karnataka","11.89","",940],[4,"Yoka Dharshini T","Tamil Nadu","11.98","",926],[5,"Aastha Siya","Karnataka","12.12","",906],[6,"Sachita Devi","Haryana","12.15","",901],[7,"Shreya Bandal","Maharashtra","12.22","",891],[8,"Raihana M","Kerala","12.43","",860]]},{"s":"Women U18","e":"100m Hurdles","k":"t","a":4.245114439016459,"b":29.048123983712568,"c":0,"nr":"13.70","mr":"13.70","ji":"76.2 cm hurdles","r":[[1,"Anamika Ajesh","Kerala","13.82","",984],[2,"Nupura Holla","Karnataka","13.84","",981],[3,"Rajasree Vb","Tamil Nadu","14.07","",952],[4,"Tasneem Kaur Dhillon","Punjab","14.42","",908],[5,"Monasri K","Tamil Nadu","14.46","",903],[6,"Diptimayee Das Sukan","Odisha","14.47","",902],[7,"Riddhi Mane","Maharashtra","14.63","",882],[8,"Khushi Patel","Uttar Pradesh","14.67","",877]]},{"s":"Men U18","e":"110m Hurdles","k":"t","a":8.814306198901338,"b":24.05138133489903,"c":0,"nr":"13.40","mr":"13.59","ji":"91.4 cm hurdles","r":[[1,"Yash Mulik","Maharashtra","13.29","NR, MR",1020],[2,"Kripal Karthic K","Tamil Nadu","13.56","",970],[3,"Anshu Yadav","Uttar Pradesh","13.64","",955],[4,"Manjot Singh","Punjab","13.72","",940],[5,"Saksham Chhikara","Haryana","13.80","",926],[6,"Advith V Yadav","Karnataka","14.05","",881],[7,"Aryan Dagar","Delhi","14.07","",878],[8,"Koushik K","Tamil Nadu","14.22","",851]]},{"s":"Girls U14","e":"Kids Javelin Throw","k":"m","a":0.0057797594743022,"b":1859.3298663475753,"c":-20000,"nr":"46.81","mr":"46.81","ji":"","r":[[1,"Japjeet Kaur","Punjab","39.96","",849],[2,"Ganasri A.S","Tamil Nadu","39.04","",829],[3,"Aaradhya Singh","Haryana","38.14","",809],[4,"Smriti Rana","Chandigarh","36.23","",767],[5,"Mysha Patel","Maharashtra","34.75","",735],[6,"Jyoti Joshi","Uttarakhand","32.67","",689],[7,"Soumya Kumari","Bihar","31.75","",669],[8,"Alle Samyuktha Sri","Telangana","31.51","",664]]},{"s":"Men U18","e":"Long Jump","k":"cm","a":0.0001617000396420874,"b":5287.448292047401,"c":-5000,"nr":"8.04","mr":"7.86","ji":"","r":[[1,"Prem Raj","Bihar","7.30","",855],[2,"Amritpal Singh","Punjab","7.19","",833],[3,"Jeyapranesh J Jeyapra","Tamil Nadu","7.05","",806],[4,"Sanoyaj Mondal","West Bengal","6.96","",789],[5,"Shivam Yadav","Madhya Pradesh","6.95","",787],[6,"Mohan Singh","Rajasthan","6.95","",787],[7,"Pranaad S","Tamil Nadu","6.90","",777],[8,"Amandeep Singh","Punjab","6.71","",740]]},{"s":"Men U18","e":"5000m Race Walk","k":"t","a":0.0005550303891025237,"b":2476.645362693585,"c":0,"nr":"18:54.37","mr":"","ji":"","r":[[1,"Lal Krishna Shi Shibu","Kerala","21:29.76","",781],[2,"Pawan Singh Gurjar","Rajasthan","21:30.93","",780],[3,"Firdous Alam","Assam","21:35.26","",774],[4,"Yogesh Singh","Madhya Pradesh","21:38.24","",770],[5,"Bhupendra Negi","Uttarakhand","21:51.77","",753],[6,"Deepak K","Tamil Nadu","22:02.78","",738],[7,"Prabhjot Singh","Punjab","22:05.90","",734],[8,"Palash Mandal","West Bengal","22:07.09","",733]]},{"s":"Women U18","e":"3000m Race Walk","k":"t","a":0.0008905691561247032,"b":1875.239107489895,"c":0,"nr":"13:35.58","mr":"","ji":"","r":[[1,"Ranjana Yadav","Madhya Pradesh","13:58.57","",957],[2,"Bhumi","Delhi","14:40.60","",881],[3,"Manisha Manisha","Uttar Pradesh","14:56.49","",853],[4,"Rutuja Mane","Maharashtra","15:01.60","",844],[5,"Riya Rathore","Rajasthan","15:03.95","",840],[6,"Kriti Premlata Patel","Madhya Pradesh","15:31.29","",793],[7,"Saranya Rajan","Kerala","15:54.08","",755],[8,"Pooja","Haryana","16:07.01","",734]]},{"s":"Women U18","e":"Discus Throw","k":"m","a":0.0038736194657975173,"b":2271.1655777200885,"c":-20000,"nr":"57.20","mr":"52.89","ji":"1 kg discus","r":[[1,"Oshin","Haryana","43.81","",759],[2,"Maninder Kaur","Chandigarh","42.81","",741],[3,"Sona Mohan T","Kerala","42.12","",728],[4,"Dimpy Saini","Uttar Pradesh","41.85","",724],[5,"Aishwarya Ghule","Maharashtra","41.10","",710],[6,"Hushaindeep Kaur","Punjab","39.07","",674],[7,"Divjot Kaur","Punjab","37.79","",651],[8,"Sanjana Chainani","Maharashtra","37.21","",640]]},{"s":"Boys U16","e":"High Jump","k":"cm","a":0.003315161646112625,"b":1138.3127883046075,"c":-5000,"nr":"2.07","mr":"","ji":"","r":[[1,"Jasbin James","Kerala","1.80","",761],[2,"Jinay Shah","Gujarat","1.80","",761],[3,"Gulshan Kumar","Uttar Pradesh","1.80","",761],[4,"Soumik Ghosh","West Bengal","1.80","",761],[5,"Longjam Tomcrus Sing","Manipur","1.78","",744],[6,"Daksh","Haryana","1.73","",700],[7,"Sai Phanendra Yerrav","Andhra Pradesh","1.73","",700],[8,"Parv Thakur","Maharashtra","1.73","",700]]},{"s":"Men U18","e":"Discus Throw","k":"m","a":0.0031346154305529742,"b":2524.227292158827,"c":-20000,"nr":"64.09","mr":"","ji":"1.5 kg discus","r":[[1,"Nishchay","Haryana","66.75","NR, MR",1043],[2,"Vishal Kumar","Rajasthan","57.72","",896],[3,"Dev Chauhan","Haryana","55.28","",857],[4,"Sarvesh D.G","Tamil Nadu","55.05","",853],[5,"Ranvijay Singh Buttar","Punjab","53.74","",832],[6,"Swapnil Dutta","West Bengal","51.25","",792],[7,"Amrit Raj Singh","Bihar","49.05","",756],[8,"Vishawajeet Salunkhe","Maharashtra","48.20","",742]]},{"s":"Boys U16","e":"Long Jump","k":"cm","a":0.0004283199725666685,"b":3248.75554262614,"c":-5000,"nr":"4.94","mr":"","ji":"","r":[[1,"Arman Khan","Uttar Pradesh","5.18","NR",1077],[2,"Rohit Raj","Bihar","5.06","",1038],[3,"Longjam Tomcrus Sing","Manipur","5.03","",1028],[4,"Sahil Patel","Uttar Pradesh","4.96","",1006],[5,"Krishna Sharma","Delhi","4.77","",945],[6,"Lovelith Kanchu","Telangana","4.76","",942],[7,"Mayank Kushwaha","Uttarakhand","4.74","",936],[8,"Ankuri Dilshan","Telangana","4.69","",920]]},{"s":"Women U18","e":"High Jump","k":"cm","a":0.0037042452718738096,"b":1089.6991603340564,"c":-5000,"nr":"1.83","mr":"1.82","ji":"","r":[[1,"Shravani Sanas","Maharashtra","1.63","",812],[2,"Ashmika C P","Kerala","1.60","",785],[3,"Aaradhya Chaudhary","Rajasthan","1.60","",785],[4,"Gunjan","Haryana","1.60","",785],[5,"Gauri Tomar","Uttar Pradesh","1.55","",738],[5,"Ishika","Delhi","1.55","",738],[7,"Ratan Bala","Haryana","1.55","",738],[7,"Yuvna Bhandari","Karnataka","1.55","",738]]},{"s":"Girls U16","e":"Long Jump","k":"cm","a":0.00039606017648025624,"b":3469.1990011876615,"c":-5000,"nr":"4.23","mr":"4.23","ji":"","r":[[1,"Prapthi R V","Karnataka","4.20","",990],[2,"Arthi S.K","Tamil Nadu","4.19","",987],[3,"Abinaya P","Tamil Nadu","4.11","",963],[4,"Yukthi K","Karnataka","4.07","",950],[5,"Laxmi Matang","Gujarat","4.00","",929],[6,"Palak Yadav","Uttar Pradesh","3.99","",926],[7,"Anu Rani","Haryana","3.88","",892],[8,"Himanshi Phogat","Delhi","3.87","",889]]},{"s":"Girls U16","e":"Pentathlon","k":"s","a":2.9701191071917447e-06,"b":40849.75626705473,"c":-5000,"nr":"4096","mr":"3884","ji":"","r":[[1,"Vijayalakshmi","Karnataka","4071","MR",993],[2,"Aishanya Priyadarshi","West Bengal","3931","",956],[3,"Deeptha Saranah","Tamil Nadu","3907","",949],[4,"Sachita Devi","Haryana","3879","",942],[5,"Ishmeet Kaur","Punjab","3871","",940],[6,"Janhavi Patole","Maharashtra","3842","",932],[7,"Gaini Nakshathra","Telangana","3834","",930],[8,"Sejal Yadav","Uttar Pradesh","3812","",924]]},{"s":"Boys U16","e":"Pentathlon","k":"s","a":3.291490258337604e-06,"b":38784.22810316967,"c":-5000,"nr":"3911","mr":"3905","ji":"","r":[[1,"Arnav Singh","Uttar Pradesh","4178","NR, MR",1075],[2,"Jashvandh Senthil Kumar","Tamil Nadu","4102","",1053],[3,"Lovelith Kanchu","Telangana","4080","",1047],[4,"Vikash Sonkar","Uttar Pradesh","4027","",1032],[5,"Mr Ravi","Haryana","4017","",1029],[6,"Mesram Indrabhan","Telangana","3925","",1003],[7,"Anshul","Haryana","3896","",995],[8,"Sidharth Jishnu","Kerala","3881","",991]]},{"s":"Women U18","e":"Heptathlon","k":"s","a":1.914312578747646e-06,"b":50882.67980334795,"c":-5000,"nr":"5102","mr":"5102","ji":"junior implements","r":[[1,"Muskan","Haryana","4790","",933],[2,"Anamika Ajesh","Kerala","4743","",923],[3,"Sonali Das","West Bengal","4262","",821],[4,"Gopika M","Tamil Nadu","4111","",789],[5,"Urmila Bharasag Debaram","Odisha","4024","",771],[6,"Chetna Yadav","Delhi","3993","",764],[7,"Miss Bhumika","Haryana","3829","",730],[8,"Dhimahi Trivedi","Gujarat","3708","",704]]},{"s":"Men U18","e":"Heptathlon","k":"s","a":1.949938525583381e-06,"b":50403.893998862404,"c":-5000,"nr":"5067","mr":"5067","ji":"junior implements","r":[[1,"Advith V Yadav","Karnataka","4860","",955],[2,"Nagar Singh Kanesh","Madhya Pradesh","4817","",946],[3,"Akash Ashvini","Bihar","4706","",922],[4,"Packia Rabin Joshwa A","Tamil Nadu","4482","",874],[5,"Vinay","Haryana","4463","",870],[6,"Ananth Srinath","Tamil Nadu","4427","",862],[7,"Appala Varun","Telangana","4418","",860],[8,"Rohith E","Kerala","4366","",849]]},{"s":"Men U18","e":"High Jump","k":"cm","a":0.002781176313224995,"b":1242.7956046224217,"c":-5000,"nr":"2.26","mr":"2.26","ji":"","r":[[1,"Zubin Gohain","Assam","2.10","",869],[2,"Sakthivel V N","Tamil Nadu","2.08","",853],[3,"Ramanand Singh","Uttar Pradesh","2.04","",821],[4,"Virendra Ranaware","Maharashtra","2.04","",821],[5,"Himanshu Kumar Sing","Jharkhand","2.01","",797],[6,"Atharv Satpute","Maharashtra","2.01","",797],[7,"Ganesh Singh","Rajasthan","1.98","",773],[8,"Kedharnadh K S","Kerala","1.98","",773]]},{"s":"Women U18","e":"200m","k":"t","a":2.364622857143017,"b":44.3045427919553,"c":0,"nr":"23.74","mr":"24.16","ji":"","r":[[1,"Bhoomika Nehate","Maharashtra","24.21","",954],[2,"Suchithra S","Karnataka","24.52","",925],[3,"T Mrithika","Tamil Nadu","24.61","",917],[4,"Saawari Kulkarni","Maharashtra","24.63","",915],[5,"Sahaya Jemima M","Tamil Nadu","24.79","",900],[6,"Heeral Saini","Chandigarh","24.85","",894],[7,"Anshika Sharma","Chandigarh","25.19","",863],[8,"Harshita Yadav","Madhya Pradesh","25.54","",832]]},{"s":"Men U18","e":"200m","k":"t","a":5.269542365349067,"b":34.85569598441582,"c":0,"nr":"21.08","mr":"21.28","ji":"","r":[[1,"Neil Samraj R","Tamil Nadu","21.03","NR, MR",1007],[2,"Lodenge Ramu","Telangana","21.36","",959],[3,"Manas Shinde","Maharashtra","21.48","",942],[4,"J.Nived Krishna","Kerala","21.63","",921],[5,"Sarthak Rajendr Sana","Maharashtra","21.84","",892],[6,"Abhishek Naruka","Rajasthan","21.96","",876],[7,"Aditya Bantanur","Karnataka","21.98","",873],[8,"Umesh Umesh","Uttar Pradesh","22.31","",829]]},{"s":"Girls U16","e":"600m","k":"t","a":0.1293511764620198,"b":179.75549227014153,"c":0,"nr":"1:31.83","mr":"1:31.83","ji":"","r":[[1,"Aashi Sharma","Haryana","1:31.96","",997],[2,"Gungun Dalal","Haryana","1:32.76","",978],[3,"Santoshi Pimpalse","Maharashtra","1:32.80","",978],[4,"Laxmi Obannavar","Karnataka","1:34.00","",951],[5,"Ashley A","Tamil Nadu","1:34.48","",940],[6,"Devika","Rajasthan","1:35.61","",915],[7,"Krithika S","Tamil Nadu","1:35.89","",909],[8,"Priya","Delhi","1:36.79","",890]]},{"s":"Boys U16","e":"600m","k":"t","a":0.38669880018070735,"b":129.33264978830059,"c":0,"nr":"1:18.48","mr":"","ji":"","r":[[1,"Sorya","Haryana","1:17.63","NR",1033],[2,"Pawan Kumar","Uttar Pradesh","1:18.50","",999],[3,"Basant Kumar Gola","Uttar Pradesh","1:18.51","",998],[4,"Divyanshu","Rajasthan","1:18.90","",983],[5,"Gauransh Saini","Haryana","1:19.68","",953],[6,"Bhavesh E","Tamil Nadu","1:19.80","",948],[7,"Subhash Oraon","Jharkhand","1:21.41","",888],[8,"Vansh","Uttarakhand","1:22.28","",856]]},{"s":"Women U18","e":"1000m","k":"t","a":0.03900922908802705,"b":326.5592105411298,"c":0,"nr":"2:46.45","mr":"2:46.45","ji":"","r":[[1,"Deepika","Rajasthan","2:55.22","",893],[2,"A Thanishkaa Anbaras","Tamil Nadu","2:55.37","",891],[3,"Khushi Sharma","Haryana","2:55.86","",885],[4,"Ranjan","Uttar Pradesh","2:56.06","",883],[5,"Mahee","Delhi","2:56.34","",880],[6,"Shraddha Yadav","Uttar Pradesh","2:56.85","",874],[7,"Divya Prasad Ghodeka","Maharashtra","2:59.55","",843],[8,"Mahak Sheoran","Haryana","3:00.18","",835]]},{"s":"Men U18","e":"1000m","k":"t","a":0.10926418760798247,"b":240.77676302928435,"c":0,"nr":"2:25.11","mr":"","ji":"","r":[[1,"Dev","Haryana","2:26.60","",969],[2,"Hunny Yadav","Haryana","2:26.71","",966],[3,"Suraj Mansingh","Madhya Pradesh","2:27.34","",953],[4,"Ranveer Farakate","Maharashtra","2:27.85","",943],[5,"Deepak Kumar","Uttar Pradesh","2:28.60","",928],[6,"Suraj Singh","Uttarakhand","2:28.94","",921],[7,"A Kushiik","Tamil Nadu","2:29.21","",916],[8,"Thirukkumaran","Puducherry","2:29.43","",911]]}];
-var SECS=[["Boys U14","Boys","U14"],["Girls U14","Girls","U14"],["Boys U16","Boys","U16"],["Girls U16","Girls","U16"],["Men U18","Men","U18"],["Women U18","Women","U18"]];
-var PARENT={"Kids Javelin Throw":"Javelin Throw (senior table)","80m Hurdles":"","Pentathlon":"","Triathlon A":"","Triathlon B":"","Triathlon C":""};
+   a,b,c = junior curve anchored so nr0 scores 1000; nr = current National Record; h = who set it if recent; ji = youth-implement note. */
+var EVENTS=[{"s":"Boys U14","e":"Triathlon B","k":"s","a":5.259295674113875e-06,"b":30682.28119437662,"c":-5000,"nr0":"3094","nr":"3256","h":"Sumit Yadav (Uttar Pradesh), Oct 2026","ji":""},{"s":"Girls U16","e":"Javelin Throw","k":"m","a":0.005764971183198386,"b":1861.7131133456705,"c":-20000,"nr0":"46.87","nr":"54.40","h":"Minakshi (Haryana), Oct 2026","ji":""},{"s":"Girls U14","e":"Triathlon B","k":"s","a":5.031532424905207e-06,"b":31385.298577251277,"c":-5000,"nr0":"3147","nr":"3147","h":"","ji":""},{"s":"Women U18","e":"Javelin Throw","k":"m","a":0.004157825511782583,"b":2192.190030414926,"c":-20000,"nr0":"55.19","nr":"55.19","h":"","ji":"500 g javelin"},{"s":"Women U18","e":"Shot Put","k":"m","a":0.045217463680777205,"b":664.6353876302575,"c":-20000,"nr0":"16.85","nr":"16.85","h":"","ji":"3 kg shot"},{"s":"Girls U14","e":"Triathlon C","k":"s","a":7.853033075199825e-06,"b":25122.201180837612,"c":-5000,"nr0":"2519","nr":"2644","h":"Prakriti Atal (Delhi), Oct 2026","ji":""},{"s":"Boys U14","e":"Triathlon C","k":"s","a":9.727593278841024e-06,"b":22560.500878218103,"c":-5000,"nr0":"2275","nr":"2275","h":"","ji":""},{"s":"Girls U16","e":"60m","k":"t","a":25.312924607744808,"b":13.885340893643775,"c":0,"nr0":"7.60","nr":"7.60","h":"","ji":""},{"s":"Boys U16","e":"60m","k":"t","a":68.04482763947958,"b":10.743561553042253,"c":0,"nr0":"6.91","nr":"6.91","h":"","ji":""},{"s":"Women U18","e":"100m","k":"t","a":10.508584681790598,"b":21.37501374953666,"c":0,"nr0":"11.62","nr":"11.62","h":"","ji":""},{"s":"Men U18","e":"100m","k":"t","a":25.428087345872154,"b":16.731091719579542,"c":0,"nr0":"10.46","nr":"10.45","h":"Neil Samraj R (Tamil Nadu), Oct 2026","ji":""},{"s":"Girls U14","e":"Triathlon A","k":"s","a":7.92839161748509e-06,"b":25002.524160523975,"c":-5000,"nr0":"2507","nr":"2617","h":"Meera Bobal (Delhi), Oct 2026","ji":""},{"s":"Men U18","e":"Javelin Throw","k":"m","a":0.0019034706487845638,"b":3239.767578020996,"c":-20000,"nr0":"81.75","nr":"81.75","h":"","ji":"700 g javelin"},{"s":"Boys U16","e":"Shot Put","k":"m","a":0.04484370510807979,"b":666.899480742008,"c":-20000,"nr0":"17.42","nr":"17.86","h":"Tharanesh C (Tamil Nadu), Oct 2026","ji":""},{"s":"Boys U14","e":"Triathlon A","k":"s","a":8.498202161349109e-06,"b":24137.25676377269,"c":-5000,"nr0":"2434","nr":"2434","h":"","ji":""},{"s":"Girls U16","e":"Shot Put","k":"m","a":0.06751145632590728,"b":543.9360234671366,"c":-20000,"nr0":"13.79","nr":"13.79","h":"","ji":""},{"s":"Women U18","e":"400m","k":"t","a":0.3676311554902844,"b":105.00474728450415,"c":0,"nr0":"52.85","nr":"52.85","h":"","ji":""},{"s":"Men U18","e":"400m","k":"t","a":1.0522687686173644,"b":77.81738310689309,"c":0,"nr0":"46.99","nr":"46.80","h":"Lodenge Ramu (Telangana), Oct 2026","ji":""},{"s":"Boys U16","e":"Javelin Throw","k":"m","a":0.00258724700138016,"b":2778.8685329765412,"c":-20000,"nr0":"70.12","nr":"70.32","h":"Daksh Solanki (Haryana), Oct 2026","ji":""},{"s":"Women U18","e":"Long Jump","k":"cm","a":0.00016876869788674508,"b":5314.517618840671,"c":-5000,"nr0":"6.48","nr":"6.48","h":"","ji":""},{"s":"Men U18","e":"Shot Put","k":"m","a":0.03074017378350379,"b":805.4859400006801,"c":-20000,"nr0":"21.04","nr":"21.04","h":"","ji":"5 kg shot"},{"s":"Girls U16","e":"High Jump","k":"cm","a":0.00509744698840327,"b":928.9238743831302,"c":-5000,"nr0":"1.56","nr":"1.56","h":"","ji":""},{"s":"Boys U16","e":"80m Hurdles","k":"t","a":14.976540343861416,"b":18.45135821811657,"c":0,"nr0":"10.28","nr":"10.10","h":"Amanuel Kisku (Jharkhand), Oct 2026","ji":""},{"s":"Boys U14","e":"Kids Javelin Throw","k":"m","a":0.00345827955128667,"b":2403.570686323834,"c":-20000,"nr0":"60.65","nr":"71.20","h":"Varun Bhambhu (Haryana), Oct 2026","ji":""},{"s":"Girls U16","e":"80m Hurdles","k":"t","a":6.024692091183359,"b":24.383461738152885,"c":0,"nr0":"11.50","nr":"11.50","h":"","ji":""},{"s":"Women U18","e":"100m Hurdles","k":"t","a":4.245114439016459,"b":29.048123983712568,"c":0,"nr0":"13.70","nr":"13.70","h":"","ji":"76.2 cm hurdles"},{"s":"Men U18","e":"110m Hurdles","k":"t","a":8.814306198901338,"b":24.05138133489903,"c":0,"nr0":"13.40","nr":"13.29","h":"Yash Mulik (Maharashtra), Oct 2026","ji":"91.4 cm hurdles"},{"s":"Girls U14","e":"Kids Javelin Throw","k":"m","a":0.0057797594743022,"b":1859.3298663475753,"c":-20000,"nr0":"46.81","nr":"46.81","h":"","ji":""},{"s":"Men U18","e":"Long Jump","k":"cm","a":0.0001617000396420874,"b":5287.448292047401,"c":-5000,"nr0":"8.04","nr":"8.04","h":"","ji":""},{"s":"Men U18","e":"5000m Race Walk","k":"t","a":0.0005550303891025237,"b":2476.645362693585,"c":0,"nr0":"18:54.37","nr":"18:54.37","h":"","ji":""},{"s":"Women U18","e":"3000m Race Walk","k":"t","a":0.0008905691561247032,"b":1875.239107489895,"c":0,"nr0":"13:35.58","nr":"13:35.58","h":"","ji":""},{"s":"Women U18","e":"Discus Throw","k":"m","a":0.0038736194657975173,"b":2271.1655777200885,"c":-20000,"nr0":"57.20","nr":"57.20","h":"","ji":"1 kg discus"},{"s":"Boys U16","e":"High Jump","k":"cm","a":0.003315161646112625,"b":1138.3127883046075,"c":-5000,"nr0":"2.07","nr":"2.07","h":"","ji":""},{"s":"Men U18","e":"Discus Throw","k":"m","a":0.0031346154305529742,"b":2524.227292158827,"c":-20000,"nr0":"64.09","nr":"66.75","h":"Nishchay (Haryana), Oct 2026","ji":"1.5 kg discus"},{"s":"Boys U16","e":"Long Jump","k":"cm","a":0.0004283199725666685,"b":3248.75554262614,"c":-5000,"nr0":"4.94","nr":"5.18","h":"Arman Khan (Uttar Pradesh), Oct 2026","ji":""},{"s":"Women U18","e":"High Jump","k":"cm","a":0.0037042452718738096,"b":1089.6991603340564,"c":-5000,"nr0":"1.83","nr":"1.83","h":"","ji":""},{"s":"Girls U16","e":"Long Jump","k":"cm","a":0.00039606017648025624,"b":3469.1990011876615,"c":-5000,"nr0":"4.23","nr":"4.23","h":"","ji":""},{"s":"Girls U16","e":"Pentathlon","k":"s","a":2.9701191071917447e-06,"b":40849.75626705473,"c":-5000,"nr0":"4096","nr":"4096","h":"","ji":""},{"s":"Boys U16","e":"Pentathlon","k":"s","a":3.291490258337604e-06,"b":38784.22810316967,"c":-5000,"nr0":"3911","nr":"4178","h":"Arnav Singh (Uttar Pradesh), Oct 2026","ji":""},{"s":"Women U18","e":"Heptathlon","k":"s","a":1.914312578747646e-06,"b":50882.67980334795,"c":-5000,"nr0":"5102","nr":"5102","h":"","ji":"junior implements"},{"s":"Men U18","e":"Heptathlon","k":"s","a":1.949938525583381e-06,"b":50403.893998862404,"c":-5000,"nr0":"5067","nr":"5067","h":"","ji":"junior implements"},{"s":"Men U18","e":"High Jump","k":"cm","a":0.002781176313224995,"b":1242.7956046224217,"c":-5000,"nr0":"2.26","nr":"2.26","h":"","ji":""},{"s":"Women U18","e":"200m","k":"t","a":2.364622857143017,"b":44.3045427919553,"c":0,"nr0":"23.74","nr":"23.74","h":"","ji":""},{"s":"Men U18","e":"200m","k":"t","a":5.269542365349067,"b":34.85569598441582,"c":0,"nr0":"21.08","nr":"21.03","h":"Neil Samraj R (Tamil Nadu), Oct 2026","ji":""},{"s":"Girls U16","e":"600m","k":"t","a":0.1293511764620198,"b":179.75549227014153,"c":0,"nr0":"1:31.83","nr":"1:31.83","h":"","ji":""},{"s":"Boys U16","e":"600m","k":"t","a":0.38669880018070735,"b":129.33264978830059,"c":0,"nr0":"1:18.48","nr":"1:17.63","h":"Sorya (Haryana), Oct 2026","ji":""},{"s":"Women U18","e":"1000m","k":"t","a":0.03900922908802705,"b":326.5592105411298,"c":0,"nr0":"2:46.45","nr":"2:46.45","h":"","ji":""},{"s":"Men U18","e":"1000m","k":"t","a":0.10926418760798247,"b":240.77676302928435,"c":0,"nr0":"2:25.11","nr":"2:25.11","h":"","ji":""}];
+var SECS=[["Boys U14","Boys","U14"],["Girls U14","Girls","U14"],["Boys U16","Boys","U16"],["Girls U16","Girls","U16"],["Men U18","Boys","U18"],["Women U18","Girls","U18"]];
 var UNIT={t:"time",cm:"metres",m:"metres",s:"total points"};
 var HINT={t:"Type the time, for example 12.84 or 1:36.34",cm:"Type the jump in metres, for example 5.62",m:"Type the throw in metres, for example 48.30",s:"Type the combined-event total, for example 3094"};
+function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(_){return null}}
+var OVR=store("afijp.rec")||{};
+function key(ev){return ev.s+"|"+ev.e}
+function recOf(ev){return OVR[key(ev)]||ev.nr}
 
-function toNum(v){v=String(v==null?"":v).trim().replace(/[a-z\s]+$/i,"").replace(",",".");if(!v)return NaN;
+function toNum(v){v=String(v==null?"":v).trim().replace(/\s*(m|s|sec|pts|points)$/i,"").replace(",",".");if(!v)return NaN;
   if(v.indexOf(":")>-1){var p=v.split(":"),x=0;for(var i=0;i<p.length;i++){if(p[i]===""||isNaN(+p[i]))return NaN;x=x*60+parseFloat(p[i])}return x}
   return /^[0-9]*\.?[0-9]+$/.test(v)?parseFloat(v):NaN}
 function fmtMark(ev,x){if(!isFinite(x))return "–";if(ev.k==="t")return x>=60?Math.floor(x/60)+":"+(x%60).toFixed(2).padStart(5,"0"):x.toFixed(2);
   if(ev.k==="s")return String(Math.ceil(x-1e-9));return x.toFixed(2)+" m"}
-function curve(ev){ /* re-anchor if someone edits nr: keeps the same shape, moves 1000 onto the new record */
-  if(ev._c)return ev._c;var a=ev.a,b=ev.b,c=ev.c,nr=toNum(ev.nr);
-  if(ev.k==="t"){var T=b-Math.sqrt(1000/a),k=T/nr;if(Math.abs(k-1)>1e-9){a=a*k*k;b=b/k}}
-  else{var x=ev.k==="cm"?nr*100:nr,M=-b+Math.sqrt((1000-c)/a),k2=x/M;if(Math.abs(k2-1)>1e-9){a=a/k2/k2;b=b*k2}}
-  return ev._c={a:a,b:b,c:c}}
+function curve(ev){ /* same shape, moved so the record in use scores 1000 */
+  var r=toNum(recOf(ev));if(!(r>0))r=toNum(ev.nr);var ck=ev._k===r&&ev._c;if(ck)return ck;
+  var a=ev.a,b=ev.b,c=ev.c;
+  if(ev.k==="t"){var T=b-Math.sqrt(1000/a),k=T/r;a=a*k*k;b=b/k}
+  else{var x=ev.k==="cm"?r*100:r,M=-b+Math.sqrt((1000-c)/a),k2=x/M;a=a/k2/k2;b=b*k2}
+  ev._k=r;return ev._c={a:a,b:b,c:c}}
 function points(ev,mark){var x=toNum(mark);if(!isFinite(x)||x<=0)return null;var q=curve(ev);
   if(ev.k==="t")return x<q.b?Math.floor(q.a*Math.pow(q.b-x,2)+1e-6):0;
   if(ev.k==="cm")x*=100;return Math.max(0,Math.floor(q.a*Math.pow(x+q.b,2)+q.c+1e-6))}
-function markFor(ev,P){var q=curve(ev);
-  if(ev.k==="t")return q.b-Math.sqrt(P/q.a);
+function markFor(ev,P){var q=curve(ev);if(ev.k==="t")return q.b-Math.sqrt(P/q.a);
   var x=-q.b+Math.sqrt((P-q.c)/q.a);return ev.k==="cm"?x/100:x}
 function better(ev,x,y){return ev.k==="t"?x<y:x>y}
 function parentName(ev){var g=/^(Boys|Men)/.test(ev.s);
@@ -211,42 +241,63 @@ function parentName(ev){var g=/^(Boys|Men)/.test(ev.s);
   if(ev.e==="Heptathlon")return g?"Heptathlon (men) table":"Heptathlon table";
   if(ev.e==="80m Hurdles")return g?"110m Hurdles table":"100m Hurdles table";
   if(ev.e==="Kids Javelin Throw")return "Javelin table";
+  if(/Race Walk/.test(ev.e))return g?"5000m Walk table":"3000m Walk table";
   return ev.e+" table"}
 function bySec(s){return EVENTS.filter(function(e){return e.s===s})}
 function find(s,e){for(var i=0;i<EVENTS.length;i++)if(EVENTS[i].s===s&&EVENTS[i].e===e)return EVENTS[i];return null}
-function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(_){return null}}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+/* ---------- fuzzy matching for pasted rows ---------- */
+function norm(t){return String(t||"").toLowerCase().replace(/under[\s-]*/g,"u").replace(/[^a-z0-9]/g,"")}
+function matchSec(t){var n=norm(t),age=(n.match(/u1[468]/)||[""])[0];if(!age)return null;
+  var girl=/girl|women|woman|female|^w|^g|^f/.test(n.replace(age,""));
+  var boy=/boy|men|man|male|^m|^b/.test(n.replace(age,""));if(!girl&&!boy)return null;
+  var lab={u14:"U14",u16:"U16",u18:"U18"}[age];return girl?(age==="u18"?"Women U18":"Girls "+lab):(age==="u18"?"Men U18":"Boys "+lab)}
+var ALIAS={sp:"shotput",shot:"shotput",lj:"longjump",hj:"highjump",jt:"javelinthrow",javelin:"javelinthrow",kidsjavelin:"kidsjavelinthrow",kidsjt:"kidsjavelinthrow",dt:"discusthrow",discus:"discusthrow",
+  "80mh":"80mhurdles","100mh":"100mhurdles","110mh":"110mhurdles",penta:"pentathlon",hepta:"heptathlon",
+  "5kmwalk":"5000mracewalk","5000mw":"5000mracewalk","5kmrw":"5000mracewalk","5000mrw":"5000mracewalk","3kmwalk":"3000mracewalk","3000mw":"3000mracewalk","3kmrw":"3000mracewalk","3000mrw":"3000mracewalk",
+  tria:"triathlona",trib:"triathlonb",tric:"triathlonc",triathlongroupa:"triathlona",triathlongroupb:"triathlonb",triathlongroupc:"triathlonc"};
+function matchEv(sec,t){var n=norm(t);n=ALIAS[n]||n;var list=bySec(sec);
+  for(var i=0;i<list.length;i++)if(norm(list[i].e)===n)return list[i].e;
+  for(i=0;i<list.length;i++){var m=norm(list[i].e);if(n.length>2&&(m.indexOf(n)===0||n.indexOf(m)===0))return list[i].e}return null}
 
 /* ---------- single calculator ---------- */
 var $=function(id){return document.getElementById(id)};
-var st=store("afijp.state")||{};var cur=st.sec||"Boys U16";
+var st=store("afijp.state2")||{};var cur=st.sec||"Boys U16";
 function drawLanes(){$("lanes").innerHTML=SECS.map(function(s){return '<button type="button" data-s="'+s[0]+'" aria-pressed="'+(s[0]===cur)+'">'+s[1]+' '+s[2]+'<small>'+bySec(s[0]).length+' events</small></button>'}).join("")}
-function drawEvents(keep){var list=bySec(cur);$("ev").innerHTML=list.map(function(e){return '<option>'+e.e+'</option>'}).join("");
-  if(keep&&find(cur,keep))$("ev").value=keep}
+function drawEvents(keep){$("ev").innerHTML=bySec(cur).map(function(e){return '<option>'+e.e+'</option>'}).join("");if(keep&&find(cur,keep))$("ev").value=keep}
 function ev(){return find(cur,$("ev").value)}
+function unitTxt(e,v){return v+(e.k==="s"?" pts":e.k==="t"?"":" m")}
 function render(){var e=ev();if(!e)return;
   $("markHint").textContent=HINT[e.k];$("mark").placeholder=e.k==="t"?"12.84":e.k==="s"?"3094":"5.62";
-  $("fNR").textContent=e.nr+(e.k==="s"?" pts":e.k==="t"?"":" m");$("fMR").textContent=e.mr?e.mr+(e.k==="s"?" pts":e.k==="t"?"":" m"):"–";
+  if(document.activeElement!==$("rec"))$("rec").value=recOf(e);
+  var edited=!!OVR[key(e)];$("recReset").hidden=!edited;
+  $("holder").innerHTML=edited?'<span class="edited">Custom record.</span> Indian National Record is '+esc(unitTxt(e,e.nr))+'.'
+     :'Indian National Record'+(e.h?' · '+esc(e.h):'')+'.';
   $("fPar").textContent=parentName(e);$("fUnit").textContent=UNIT[e.k];
-  var raw=$("mark").value,p=points(e,raw),x=toNum(raw),nr=toNum(e.nr);
-  var chip=$("chip");
-  if(p==null){$("pts").textContent="–";chip.className="chip none";chip.textContent=raw.trim()?"Can't read that mark":"Type a mark";$("pctTxt").textContent="Share of the National Record";$("pctBar").style.width="0"}
+  var raw=$("mark").value,p=points(e,raw),x=toNum(raw),nr=toNum(recOf(e)),chip=$("chip"),nm=edited?"record":"National Record";
+  if(p==null){$("pts").textContent="–";chip.className="chip none";chip.textContent=raw.trim()?"Can't read that mark":"Type a mark";$("pctTxt").textContent="Share of the "+nm;$("pctBar").style.width="0"}
   else{$("pts").textContent=p;
-    if(Math.abs(x-nr)<1e-9){chip.className="chip eq";chip.textContent="Equals the National Record"}
-    else if(better(e,x,nr)){chip.className="chip nr";chip.textContent="New National Record"}
-    else{chip.className="chip below";chip.textContent="Below the National Record"}
-    var pct=e.k==="t"?nr/x*100:x/nr*100;$("pctTxt").textContent=pct.toFixed(1)+"% of the National Record";$("pctBar").style.width=Math.min(100,pct)+"%"}
-  $("ladder").innerHTML=[1100,1000,900,800,700,600,500].map(function(P){var m=markFor(e,P);return '<tr class="'+(p!=null&&p>=P?"hit":"")+'"><td>'+P+(P===1000?" (NR)":"")+'</td><td>'+fmtMark(e,m)+'</td></tr>'}).join("");
-  var n=$("implNote");if(e.ji){n.hidden=false;n.textContent="U18 uses "+e.ji+". These junior points are for analysis. The official U18 Best Athlete uses World Athletics points, which only score senior-equipment events."}else n.hidden=true;
-  store("afijp.state",{sec:cur,ev:e.e,mark:raw})}
-$("lanes").addEventListener("click",function(ev_){var b=ev_.target.closest("button");if(!b)return;var old=$("ev").value;cur=b.dataset.s;drawLanes();drawEvents(old);$("mark").value="";render();$("mark").focus()});
+    if(Math.abs(x-nr)<1e-9){chip.className="chip eq";chip.textContent="Equals the "+nm}
+    else if(better(e,x,nr)){chip.className="chip nr";chip.textContent="Better than the "+nm}
+    else{chip.className="chip below";chip.textContent="Below the "+nm}
+    var pct=e.k==="t"?nr/x*100:x/nr*100;$("pctTxt").textContent=pct.toFixed(1)+"% of the "+nm;$("pctBar").style.width=Math.min(100,pct)+"%"}
+  $("ladder").innerHTML=[1100,1000,900,800,700,600,500,400,300].map(function(P){var m=markFor(e,P);return '<tr class="'+(p!=null&&p>=P?"hit":"")+'"><td>'+P+(P===1000?" (record)":"")+'</td><td>'+fmtMark(e,m)+'</td></tr>'}).join("");
+  var n=$("implNote");if(e.ji){n.hidden=false;n.textContent="U18 uses "+e.ji+". These points let you compare U18 athletes across events. Official U18 and U20 awards use World Athletics points, which only score senior-equipment events."}else n.hidden=true;
+  store("afijp.state2",{sec:cur,ev:e.e,mark:raw})}
+$("lanes").addEventListener("click",function(x){var b=x.target.closest("button");if(!b)return;var old=$("ev").value;cur=b.dataset.s;drawLanes();drawEvents(old);$("mark").value="";render();$("mark").focus()});
 $("ev").addEventListener("change",function(){$("mark").value="";render()});
 $("mark").addEventListener("input",render);
+$("rec").addEventListener("input",function(){var e=ev(),v=$("rec").value.trim(),n=toNum(v);
+  if(n>0&&v!==e.nr)OVR[key(e)]=v;else delete OVR[key(e)];store("afijp.rec",OVR);render();drawRows()});
+$("rec").addEventListener("blur",render);
+$("recReset").addEventListener("click",function(){delete OVR[key(ev())];store("afijp.rec",OVR);$("rec").value=ev().nr;render();drawRows()});
 
-/* ---------- Best Athlete sheet ---------- */
-var rows=store("afijp.rows")||[];
+/* ---------- meet sheet ---------- */
+var rows=store("afijp.rows2");var firstVisit=!rows;rows=rows||[];
+$("meet").value=store("afijp.meet")||"";$("meet").addEventListener("input",function(){store("afijp.meet",$("meet").value)});
 function secOpts(v){return SECS.map(function(s){return '<option'+(s[0]===v?" selected":"")+'>'+s[0]+'</option>'}).join("")}
 function evOpts(s,v){return bySec(s).map(function(e){return '<option'+(e.e===v?" selected":"")+'>'+e.e+'</option>'}).join("")}
-function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function score(r){var e=find(r.s,r.e);return e?points(e,r.m):null}
 function drawRows(){
   var sc=rows.map(function(r,i){return{i:i,p:score(r)}});
@@ -257,37 +308,50 @@ function drawRows(){
   $("rows").innerHTML=rows.length?order.map(function(o){var r=rows[o.i],i=o.i;return '<tr class="'+(bestIdx[i]?"best":"")+'" data-i="'+i+'">'+
     '<td class="rk">'+rank[i]+'</td>'+
     '<td><input id="n'+i+'" data-f="n" value="'+esc(r.n)+'" placeholder="Name" aria-label="Athlete name"></td>'+
-    '<td><input id="t'+i+'" data-f="t" value="'+esc(r.t)+'" placeholder="State" aria-label="State"></td>'+
+    '<td><input id="t'+i+'" data-f="t" value="'+esc(r.t)+'" placeholder="State" aria-label="State or district"></td>'+
     '<td><select id="s'+i+'" data-f="s" aria-label="Category">'+secOpts(r.s)+'</select></td>'+
     '<td><select id="e'+i+'" data-f="e" aria-label="Event">'+evOpts(r.s,r.e)+'</select></td>'+
     '<td><input id="m'+i+'" data-f="m" value="'+esc(r.m)+'" placeholder="Mark" aria-label="Mark" style="font-family:var(--mono);width:110px"></td>'+
     '<td class="pts">'+(o.p==null?"–":o.p)+'</td>'+
     '<td><button class="btn x" type="button" data-del="'+i+'" aria-label="Remove row">✕</button></td></tr>'}).join("")
-   :'<tr><td colspan="8" style="padding:18px;color:var(--muted)">No rows yet. Add a row, or load the 2026 medallists to see how Best Athlete is decided.</td></tr>';
-  $("winners").innerHTML=SECS.filter(function(s){return best[s[0]]}).map(function(s){var b=best[s[0]],r=rows[b.i];
-    return '<div class="win"><span class="s">'+(/U18/.test(s[0])?'Top junior pts · '+s[0]+' (analysis)':'Best Athlete · '+s[0])+'</span><span class="n">'+esc(r.n||"Unnamed")+'</span><span class="d">'+esc(r.t)+' · '+esc(r.e)+' · '+esc(r.m)+'</span><span class="p">'+b.p+' pts</span></div>'}).join("");
-  store("afijp.rows",rows)}
-$("rows").addEventListener("change",function(e){var tr=e.target.closest("tr"),f=e.target.dataset.f;if(!tr||!f)return;var r=rows[+tr.dataset.i];r[f]=e.target.value;
-  if(f==="s"){r.e=bySec(r.s)[0].e}drawRows()});
-$("rows").addEventListener("input",function(e){var tr=e.target.closest("tr"),f=e.target.dataset.f;if(!tr||!f||e.target.tagName!=="INPUT")return;rows[+tr.dataset.i][f]=e.target.value;
-  if(f==="m"){var p=score(rows[+tr.dataset.i]);tr.querySelector(".pts").textContent=p==null?"–":p}});
-$("rows").addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.f==="m")drawRows();else store("afijp.rows",rows)});
+   :'<tr><td colspan="8" style="padding:18px;color:var(--muted)">No athletes yet. Click Add a row, or paste your results from Excel.</td></tr>';
+  $("winners").innerHTML=SECS.filter(function(s){return best[s[0]]}).map(function(s){var b=best[s[0]],r=rows[b.i],ex=r.x?'<span class="tag">Example</span>':'';
+    return '<div class="win"><span class="s">Best Athlete · '+s[0]+'</span><span class="n">'+esc(r.n||"Unnamed")+ex+'</span><span class="d">'+esc(r.t)+(r.t?' · ':'')+esc(r.e)+' · '+esc(r.m)+'</span><span class="p">'+b.p+' pts</span></div>'}).join("");
+  store("afijp.rows2",rows)}
+function liveRow(e){var r=rows[+e.target.closest("tr").dataset.i];r.x=false;return r}
+$("rows").addEventListener("change",function(e){var tr=e.target.closest("tr"),f=e.target.dataset.f;if(!tr||!f)return;var r=liveRow(e);r[f]=e.target.value;if(f==="s"){r.e=bySec(r.s)[0].e}drawRows()});
+$("rows").addEventListener("input",function(e){var tr=e.target.closest("tr"),f=e.target.dataset.f;if(!tr||!f||e.target.tagName!=="INPUT")return;var r=liveRow(e);r[f]=e.target.value;
+  if(f==="m"){var p=score(r);tr.querySelector(".pts").textContent=p==null?"–":p}});
+$("rows").addEventListener("focusout",function(e){if(e.target.dataset&&e.target.dataset.f==="m")drawRows();else store("afijp.rows2",rows)});
 $("rows").addEventListener("click",function(e){var d=e.target.closest("[data-del]");if(!d)return;rows.splice(+d.dataset.del,1);drawRows()});
-$("addRow").addEventListener("click",function(){var e=ev();rows.push({n:"",t:"",s:cur,e:e?e.e:bySec(cur)[0].e,m:""});drawRows();var i=rows.length-1,el=$("n"+i);if(el)el.focus()});
-$("loadNat").addEventListener("click",function(){rows=[];EVENTS.forEach(function(e){e.r.forEach(function(r){if(r[0]<=3)rows.push({n:r[1],t:r[2],s:e.s,e:e.e,m:r[3]})})});drawRows()});
+$("addRow").addEventListener("click",function(){var e=ev();rows=rows.filter(function(r){return !r.x});rows.push({n:"",t:"",s:cur,e:e?e.e:bySec(cur)[0].e,m:""});drawRows();var el=$("n"+(rows.length-1));if(el)el.focus()});
+$("pasteToggle").addEventListener("click",function(){var b=$("pasteBox"),open=b.hidden;b.hidden=!open;$("pasteToggle").setAttribute("aria-expanded",open);if(open)$("pasteTxt").focus()});
+$("pasteGo").addEventListener("click",function(){var lines=$("pasteTxt").value.split(/\r?\n/),ok=0,bad=[];
+  rows=rows.filter(function(r){return !r.x});
+  lines.forEach(function(l,ix){if(!l.trim())return;var c=l.indexOf("\t")>-1?l.split("\t"):l.split(",");c=c.map(function(x){return x.trim()});
+    if(c.length<5){bad.push(ix+1);return}var mk=c[c.length-1],evn=c[c.length-2],sc=c[c.length-3],t=c.length>4?c[1]:"",nm=c[0];
+    var s=matchSec(sc);var e=s&&matchEv(s,evn);if(!s||!e||isNaN(toNum(mk))){bad.push(ix+1);return}
+    rows.push({n:nm,t:t,s:s,e:e,m:mk});ok++});
+  drawRows();$("pasteMsg").textContent=ok+" row"+(ok===1?"":"s")+" added."+(bad.length?" Could not read line "+bad.join(", ")+". Check the category (e.g. Boys U16) and event name.":"");
+  if(ok&&!bad.length)$("pasteTxt").value=""});
 var clearArmed=false;$("clearRows").addEventListener("click",function(){var b=$("clearRows");if(!clearArmed){clearArmed=true;b.textContent="Click again to clear";setTimeout(function(){clearArmed=false;b.textContent="Clear sheet"},3000);return}
   clearArmed=false;b.textContent="Clear sheet";rows=[];drawRows()});
-$("copyCsv").addEventListener("click",function(){var b=$("copyCsv");var csv=["Athlete,State,Category,Event,Mark,Points"].concat(rows.map(function(r){var p=score(r);return [r.n,r.t,r.s,r.e,r.m,p==null?"":p].map(function(v){v=String(v==null?"":v);return /[",]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(",")})).join("\n");
-  function done(t){b.textContent=t;setTimeout(function(){b.textContent="Copy as CSV"},1800)}
-  try{navigator.clipboard.writeText(csv).then(function(){done("Copied")},function(){fallback()})}catch(_){fallback()}
-  function fallback(){var ta=document.createElement("textarea");ta.value=csv;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done("Copied")}catch(_){done("Select and copy manually")}ta.remove()}});
+$("copyCsv").addEventListener("click",function(){var b=$("copyCsv");var head=$("meet").value?[$("meet").value]:[];
+  var sorted=rows.map(function(r){return{r:r,p:score(r)}}).sort(function(a,b){return (b.p==null?-1:b.p)-(a.p==null?-1:a.p)});
+  var csv=head.concat(["Rank,Athlete,State,Category,Event,Mark,Points"]).concat(sorted.map(function(o,j){var r=o.r;return [o.p==null?"":j+1,r.n,r.t,r.s,r.e,r.m,o.p==null?"":o.p].map(function(v){v=String(v==null?"":v);return /[",]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(",")})).join("\n");
+  function done(t){b.textContent=t;setTimeout(function(){b.textContent="Copy results"},1800)}
+  function fallback(){var ta=document.createElement("textarea");ta.value=csv;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done("Copied")}catch(_){done("Copy failed")}ta.remove()}
+  try{navigator.clipboard.writeText(csv).then(function(){done("Copied")},fallback)}catch(_){fallback()}});
 
 /* ---------- start ---------- */
 if(!SECS.some(function(s){return s[0]===cur}))cur="Boys U16";
-drawLanes();drawEvents(st.ev);$("mark").value=st.mark!=null&&st.ev===$("ev").value?st.mark:(st.ev?"":"1:31.20");
-if(!st.ev){$("ev").value="600m";$("mark").value="1:21.40"}
-render();
-if(!rows.length){$("loadNat").click()}else drawRows();
+drawLanes();drawEvents(st.ev||"600m");$("mark").value=st.ev?(st.mark||""):"1:21.40";render();
+if(firstVisit){rows=[ /* example rows so the sheet shows how it works; replaced as soon as you add your own */
+  {n:"Example athlete A",t:"Bihar",s:"Boys U16",e:"Long Jump",m:"4.80",x:true},
+  {n:"Example athlete B",t:"Kerala",s:"Girls U16",e:"80m Hurdles",m:"12.10",x:true},
+  {n:"Example athlete C",t:"Punjab",s:"Boys U16",e:"Shot Put",m:"15.20",x:true},
+  {n:"Example athlete D",t:"Odisha",s:"Girls U14",e:"Triathlon A",m:"2300",x:true}]}
+drawRows();
 </script>
 </body>
 </html>

@@ -1,12 +1,13 @@
 # AFI Junior Points Calculator
 
-A single-page web app that scores junior athletics performances for **U14, U16 and U18**.
+A single-page web app that scores junior athletics performances for **U14, U16 and U18** at any competition in India: district, state, zonal or national.
 Pick the category, pick the event, type the mark, and the points appear instantly.
 
 - The Indian **National Record in each event = 1000 points**.
 - Built on the World Athletics curve shape, rescaled to our junior NRs.
 - 48 events: Boys/Girls U14 (4 each), Boys/Girls U16 (8 each), Men/Women U18 (12 each).
-- Includes a **Best Athlete sheet**: add rows, and the top score per category is highlighted. It can preload the 2026 Junior Nationals medallists.
+- **Meet sheet**: add athletes or paste rows from Excel (Name, State, Category, Event, Mark). The top score in each category is marked as Best Athlete, and the sheet can be copied as CSV.
+- National Records as of 28 Oct 2026. Any record can be overridden in the app ("Record worth 1000 points").
 
 ## Formula
 | Event type | Points |
@@ -19,7 +20,7 @@ Pick the category, pick the event, type the mark, and the points appear instantl
 The parent table is the senior event each junior event grows into. Examples: 80m Hurdles → 110mH (boys) or 100mH (girls); Kids Javelin → Javelin; Triathlon and Pentathlon → Decathlon (boys) or Heptathlon (girls).
 
 ## Updating a record
-Edit the event's `nr` value inside `index.html`. The curve re-anchors itself so that the new record scores 1000. No other change is needed.
+For one user: type the new record in "Record worth 1000 points". For everyone: edit that event's `nr` value inside `index.html` and push. The curve re-anchors so the new record scores 1000.
 
 ## Hosting
 Turn on **Settings → Pages → Deploy from branch → main / root**. The app will be served at
