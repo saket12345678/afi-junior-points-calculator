@@ -1,13 +1,12 @@
 # AFI Junior Points Calculator
 
 A single-page web app that scores junior athletics performances for **U14, U16 and U18** at any competition in India: district, state, zonal or national.
-Pick the category, pick the event, type the mark, and the points appear instantly.
+Pick the category, pick the event, type the National Record and the mark, and the points appear instantly. Nothing is pre-filled.
 
-- The Indian **National Record in each event = 1000 points**.
+- The **National Record you enter = 1000 points**. No records are built into the page.
 - Built on the World Athletics curve shape, rescaled to our junior NRs.
 - 48 events: Boys/Girls U14 (4 each), Boys/Girls U16 (8 each), Men/Women U18 (12 each).
-- **Meet sheet**: add athletes or paste rows from Excel (Name, State, Category, Event, Mark). The top score in each category is marked as Best Athlete, and the sheet can be copied as CSV.
-- National Records as of 28 Oct 2026. Any record can be overridden in the app ("Record worth 1000 points").
+- **Meet sheet**: add athletes or paste rows from Excel (Name, State, Category, Event, Mark, optional National Record). Enter the NR once per event. The top score in each category is marked as Best Athlete, and the sheet can be copied as CSV. The sheet clears when the page is closed.
 
 ## Formula
 | Event type | Points |
@@ -19,8 +18,8 @@ Pick the category, pick the event, type the mark, and the points appear instantl
 
 The parent table is the senior event each junior event grows into. Examples: 80m Hurdles → 110mH (boys) or 100mH (girls); Kids Javelin → Javelin; Triathlon and Pentathlon → Decathlon (boys) or Heptathlon (girls).
 
-## Updating a record
-For one user: type the new record in "Record worth 1000 points". For everyone: edit that event's `nr` value inside `index.html` and push. The curve re-anchors so the new record scores 1000.
+## Records
+The user types the National Record for each event. The curve re-anchors so that record scores 1000.
 
 ## Hosting
 Turn on **Settings → Pages → Deploy from branch → main / root**. The app will be served at
@@ -33,5 +32,5 @@ Turn on **Settings → Pages → Deploy from branch → main / root**. The app w
 
 ## WA Senior Points Calculator
 `wa-senior/index.html` scores senior performances with the World Athletics Scoring Tables 2025 and the World Rankings rules:
-result score from the WA tables, wind modification (100m, 200m, 100mH, 110mH, LJ, TJ: 6 points per m/s, none from 0 to +2.0, −30 with no reading), and placing scores by competition category (OW to F) for finals and rounds before the final.
+category, event and competition details start blank; result score from the WA tables, optional National Record comparison, wind modification (100m, 200m, 100mH, 110mH, LJ, TJ: 6 points per m/s, none from 0 to +2.0, −30 with no reading), and placing scores by competition category (OW to F) for finals and rounds before the final.
 Live at `https://saket12345678.github.io/afi-junior-points-calculator/wa-senior/`.
